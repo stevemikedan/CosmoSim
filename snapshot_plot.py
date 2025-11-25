@@ -18,10 +18,8 @@ from state import UniverseConfig, initialize_state
 from entities import spawn_entity
 from kernel import step_simulation
 
-def run_snapshot():
-    print("Initializing Snapshot Simulation...")
-    
-    cfg = UniverseConfig(
+def build_config() -> UniverseConfig:
+    return UniverseConfig(
         topology_type=0,
         physics_mode=0,
         radius=10.0,
@@ -31,12 +29,18 @@ def run_snapshot():
         c=1.0,
         G=1.0
     )
-    
-    state = initialize_state(cfg)
-    
+
+
+def build_initial_state(config: UniverseConfig):
+    state = initialize_state(config)
     # Spawn entities
     state = spawn_entity(state, jnp.array([-1.0, 0.0]), jnp.array([0.0, 0.0]), 1.0, 1)
     state = spawn_entity(state, jnp.array([ 1.0, 0.0]), jnp.array([0.0, 0.0]), 1.0, 1)
+    return state
+
+
+def run(config: UniverseConfig, state):
+    print("Initializing Snapshot Simulation...")
     
     jit_step = jax.jit(step_simulation)
     
@@ -44,7 +48,7 @@ def run_snapshot():
     STEPS = 50
     print(f"Running {STEPS} steps...")
     for _ in range(STEPS):
-        state = jit_step(state, cfg)
+        state = jit_step(state, config)
         
     print("Plotting snapshot...")
     
@@ -55,8 +59,8 @@ def run_snapshot():
     plt.figure(figsize=(8, 8))
     plt.scatter(positions[:, 0], positions[:, 1], c='blue', s=100, label='Entities')
     
-    plt.xlim(-cfg.radius, cfg.radius)
-    plt.ylim(-cfg.radius, cfg.radius)
+    plt.xlim(-config.radius, config.radius)
+    plt.ylim(-config.radius, config.radius)
     plt.grid(True)
     plt.title(f"CosmoSim Snapshot - Step {STEPS}")
     plt.xlabel("X")
@@ -73,6 +77,10 @@ def run_snapshot():
     
     plt.savefig(output_path)
     print(f"Snapshot saved to {output_path}")
+    return state
+
 
 if __name__ == "__main__":
-    run_snapshot()
+    cfg = build_config()
+    state = build_initial_state(cfg)
+    run(cfg, state)

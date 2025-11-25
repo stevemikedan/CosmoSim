@@ -11,16 +11,11 @@ from entities import spawn_entity
 from kernel import step_simulation
 
 
-def run_random_nbody(
-    n=25,
-    steps=400,
-    radius=10.0,
-    velocity_scale=0.3,
-    output="random_nbody.png",
-):
-    print(f"Running Random N-Body Test with {n} bodies...")
-
-    cfg = UniverseConfig(
+def build_config() -> UniverseConfig:
+    # Default values from original function
+    radius = 10.0
+    n = 25
+    return UniverseConfig(
         topology_type=0,
         physics_mode=0,
         radius=radius,
@@ -31,7 +26,13 @@ def run_random_nbody(
         G=1.0,
     )
 
-    state = initialize_state(cfg)
+
+def build_initial_state(config: UniverseConfig):
+    state = initialize_state(config)
+    
+    radius = config.radius
+    n = config.max_entities
+    velocity_scale = 0.3
 
     key = jax.random.PRNGKey(42)
     k1, k2, k3 = jax.random.split(key, 3)
@@ -49,13 +50,22 @@ def run_random_nbody(
             masses[i],
             1,
         )
+    return state
+
+
+def run(config: UniverseConfig, state):
+    steps = 400
+    output = "random_nbody.png"
+    n = config.max_entities
+    
+    print(f"Running Random N-Body Test with {n} bodies...")
 
     jit_step = jax.jit(step_simulation)
 
     traj = []
 
     for _ in range(steps):
-        state = jit_step(state, cfg)
+        state = jit_step(state, config)
         active_mask = state.entity_active
         traj.append(state.entity_pos[active_mask])
 
@@ -75,7 +85,10 @@ def run_random_nbody(
 
     plt.savefig(output, dpi=150)
     print(f"Saved plot to {output}")
+    return state
 
 
 if __name__ == "__main__":
-    run_random_nbody()
+    cfg = build_config()
+    state = build_initial_state(cfg)
+    run(cfg, state)

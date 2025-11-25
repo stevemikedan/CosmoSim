@@ -22,11 +22,8 @@ from kernel import step_simulation
 FRAMES = 300
 RADIUS = 10.0
 
-def run_visualization():
-    print("Initializing Visualization (Headless Mode)...")
-    
-    # Setup Universe
-    cfg = UniverseConfig(
+def build_config() -> UniverseConfig:
+    return UniverseConfig(
         topology_type=0,  # FLAT
         physics_mode=0,   # VECTOR
         radius=RADIUS,
@@ -36,12 +33,18 @@ def run_visualization():
         c=1.0,
         G=1.0
     )
-    
-    state = initialize_state(cfg)
-    
+
+
+def build_initial_state(config: UniverseConfig):
+    state = initialize_state(config)
     # Spawn two entities symmetrically
     state = spawn_entity(state, jnp.array([-1.0, 0.0]), jnp.array([0.0, 0.0]), 1.0, 1)
     state = spawn_entity(state, jnp.array([ 1.0, 0.0]), jnp.array([0.0, 0.0]), 1.0, 1)
+    return state
+
+
+def run(config: UniverseConfig, state):
+    print("Initializing Visualization (Headless Mode)...")
     
     # JIT compile step function
     jit_step = jax.jit(step_simulation)
@@ -50,7 +53,7 @@ def run_visualization():
     
     # Run loop
     for _ in range(FRAMES):
-        state = jit_step(state, cfg)
+        state = jit_step(state, config)
         
     print("Plotting final frame...")
     
@@ -83,6 +86,10 @@ def run_visualization():
     
     plt.savefig(output_path)
     print(f"Final frame saved to {output_path}")
+    return state
+
 
 if __name__ == "__main__":
-    run_visualization()
+    cfg = build_config()
+    state = build_initial_state(cfg)
+    run(cfg, state)

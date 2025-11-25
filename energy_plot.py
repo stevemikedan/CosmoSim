@@ -46,10 +46,8 @@ def compute_energy(state, config):
     
     return total_ke, total_pe
 
-def run_energy_plot():
-    print("Initializing Energy Diagnostics...")
-    
-    cfg = UniverseConfig(
+def build_config() -> UniverseConfig:
+    return UniverseConfig(
         topology_type=0,
         physics_mode=0,
         radius=10.0,
@@ -59,12 +57,18 @@ def run_energy_plot():
         c=1.0,
         G=1.0
     )
-    
-    state = initialize_state(cfg)
-    
+
+
+def build_initial_state(config: UniverseConfig):
+    state = initialize_state(config)
     # Spawn two entities
     state = spawn_entity(state, jnp.array([-1.0, 0.0]), jnp.array([0.0, 0.0]), 1.0, 1)
     state = spawn_entity(state, jnp.array([ 1.0, 0.0]), jnp.array([0.0, 0.0]), 1.0, 1)
+    return state
+
+
+def run(config: UniverseConfig, state):
+    print("Initializing Energy Diagnostics...")
     
     jit_step = jax.jit(step_simulation)
     jit_energy = jax.jit(compute_energy)
@@ -77,8 +81,8 @@ def run_energy_plot():
     STEPS = 200
     print(f"Running simulation and tracking energy for {STEPS} steps...")
     for i in range(STEPS):
-        state = jit_step(state, cfg)
-        ke, pe = jit_energy(state, cfg)
+        state = jit_step(state, config)
+        ke, pe = jit_energy(state, config)
         
         steps.append(i)
         ke_history.append(ke)
@@ -107,6 +111,10 @@ def run_energy_plot():
     
     plt.savefig(output_path)
     print(f"Energy plot saved to {output_path}")
+    return state
+
 
 if __name__ == "__main__":
-    run_energy_plot()
+    cfg = build_config()
+    state = build_initial_state(cfg)
+    run(cfg, state)

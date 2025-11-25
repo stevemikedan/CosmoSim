@@ -59,3 +59,28 @@ def mini_solar_system():
         state = spawn_entity(state, pos, vel, mass, 1)
 
     return cfg, state
+
+
+def build_config() -> UniverseConfig:
+    cfg, _ = binary_star_system()
+    return cfg
+
+
+def build_initial_state(config: UniverseConfig):
+    # Note: We ignore the passed config here because binary_star_system 
+    # creates its own config/state pair. In a more advanced version,
+    # we might use the passed config to override parameters.
+    _, state = binary_star_system()
+    return state
+
+
+def run(config: UniverseConfig, state):
+    # Option A: No simulation loop, just return state.
+    # This file is a scenario definition library, not a runner.
+    return state
+
+
+if __name__ == "__main__":
+    cfg = build_config()
+    state = build_initial_state(cfg)
+    run(cfg, state)

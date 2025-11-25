@@ -20,18 +20,8 @@ from entities import spawn_entity
 from kernel import step_simulation
 
 
-def run_trajectory_plot(
-    steps: int = 300,
-    output_dir: str = os.path.join("outputs", "trajectories"),
-) -> None:
-    """Execute the simulation and save a trajectory PNG."""
-    print("Initializing Trajectory Simulation...")
-
-    # Ensure output directory exists
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Universe config (match other scripts)
-    cfg = UniverseConfig(
+def build_config() -> UniverseConfig:
+    return UniverseConfig(
         topology_type=0,   # FLAT
         physics_mode=0,    # VECTOR
         radius=10.0,
@@ -41,11 +31,24 @@ def run_trajectory_plot(
         c=1.0,
         G=1.0,
     )
-    state = initialize_state(cfg)
 
+
+def build_initial_state(config: UniverseConfig):
+    state = initialize_state(config)
     # Spawn two symmetric entities
     state = spawn_entity(state, jnp.array([-1.0, 0.0]), jnp.array([0.0, 0.0]), 1.0, 1)
     state = spawn_entity(state, jnp.array([ 1.0, 0.0]), jnp.array([0.0, 0.0]), 1.0, 1)
+    return state
+
+
+def run(config: UniverseConfig, state):
+    steps = 300
+    output_dir = os.path.join("outputs", "trajectories")
+    
+    print("Initializing Trajectory Simulation...")
+
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
 
     # JIT the physics step for speed
     jit_step = jax.jit(step_simulation)
@@ -55,7 +58,7 @@ def run_trajectory_plot(
 
     print(f"Running {steps} steps for trajectory capture...")
     for _ in range(steps):
-        state = jit_step(state, cfg)
+        state = jit_step(state, config)
         active_mask = state.entity_active
         positions = state.entity_pos[active_mask]
         trajectory.append(positions)
@@ -89,7 +92,10 @@ def run_trajectory_plot(
     plt.close(fig)
 
     print(f"Saved output to {output_path}")
+    return state
 
 
 if __name__ == "__main__":
-    run_trajectory_plot()
+    cfg = build_config()
+    state = build_initial_state(cfg)
+    run(cfg, state)
