@@ -1,4 +1,5 @@
 import os
+import datetime
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -55,7 +56,6 @@ def build_initial_state(config: UniverseConfig):
 
 def run(config: UniverseConfig, state):
     steps = 400
-    output = "random_nbody.png"
     n = config.max_entities
     
     print(f"Running Random N-Body Test with {n} bodies...")
@@ -82,6 +82,13 @@ def run(config: UniverseConfig, state):
     plt.ylabel("Y")
     plt.gca().set_aspect("equal", adjustable="box")
     plt.grid(True)
+
+    # Standardized output handling
+    output_dir = os.path.join("outputs", "random_nbody")
+    os.makedirs(output_dir, exist_ok=True)
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    output = os.path.join(output_dir, f"random_nbody_{timestamp}.png")
 
     plt.savefig(output, dpi=150)
     print(f"Saved plot to {output}")
