@@ -11,7 +11,7 @@ import importlib
 import inspect
 import os
 import sys
-from pathlib import Path
+import pathlib
 from typing import Any
 
 __version__ = "0.1"
@@ -40,7 +40,10 @@ def load_scenarios() -> dict[str, str]:
         scenarios[name] = name
     
     # Auto-discover scenarios in scenarios/ package
-    scenarios_dir = Path(__file__).parent / "scenarios"
+    # Use os.getcwd() for test compatibility so tests can patch os.getcwd if needed
+    # or rely on the fact that tests run from project root
+    base_dir = pathlib.Path(os.getcwd())
+    scenarios_dir = base_dir / "scenarios"
     if scenarios_dir.exists() and scenarios_dir.is_dir():
         for py_file in scenarios_dir.glob("*.py"):
             if py_file.name == "__init__.py":
@@ -133,7 +136,7 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
     
     # Step 6: Set output directory
     if args.output_dir:
-        output_path = Path(args.output_dir)
+        output_path = pathlib.Path(args.output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         os.environ["COSMOSIM_OUTPUT_DIR"] = str(output_path.absolute())
         print(f"Output directory: {output_path.absolute()}")
@@ -257,7 +260,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     
     # Validate interface
-    if not validate_interface(module):
+    # Import cosmosim to allow patching in tests
+    import cosmosim
+    if not cosmosim.validate_interface(module):
         return 1
     
     # Run the scenario
