@@ -35,25 +35,46 @@ def _sanitize_number(value: float) -> float | None:
     """Replace NaN/inf with ``None`` for JSON serialisation.
 
     JSON does not support ``NaN`` or ``Infinity``. Returning ``None`` makes the
-    value explicit and safe for downstream consumers.
+    value explicit and safe for downstream consumers. Also converts JAX/NumPy
+    scalars to Python primitives.
     """
+    # Convert JAX/NumPy scalars to Python primitives first
+    if hasattr(value, 'item'):
+        try:
+            value = value.item()
+        except (AttributeError, ValueError):
+            pass
+    
     if isinstance(value, (float, int)) and not math.isfinite(value):
         return None
-    return value
+    return float(value) if not isinstance(value, (bool, int)) else value
 
 
 def _sanitize_nested(data: List[Any]) -> List[Any]:
-    """Recursively sanitize a nested list of numbers.
+    """Recursively sanitize a nested list to ensure JSON compatibility.
 
-    ``None`` is used for any non‑finite values.
+    Converts JAX/NumPy types to Python primitives and replaces non-finite
+    numbers with ``None``.
     """
     sanitized: List[Any] = []
     for item in data:
         if isinstance(item, list):
             sanitized.append(_sanitize_nested(item))
-        else:
+        elif isinstance(item, bool):
+            # Handle bool before numbers since bool is subclass of int
+            sanitized.append(bool(item))
+        elif isinstance(item, (int, float)):
             sanitized.append(_sanitize_number(item))
+        else:
+            # Handle JAX/NumPy types by converting to Python primitives
+            try:
+                # Try to convert to Python scalar
+                sanitized.append(item.item() if hasattr(item, 'item') else item)
+            except (AttributeError, ValueError):
+                # Fallback to direct conversion
+                sanitized.append(_sanitize_number(float(item)) if item is not None else None)
     return sanitized
+
 
 
 def _topology_mode_name(mode: int) -> str:

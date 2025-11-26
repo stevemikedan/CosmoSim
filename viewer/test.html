@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CosmoSim Frame Player</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #cosmosim-canvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+            pointer-events: none;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Controls Panel */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            background: #2196F3;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1976D2;
+        }
+
+        button:active {
+            background: #0D47A1;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        /* Loading Overlay */
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 1000;
+        }
+
+        #loading.hidden {
+            display: none;
+        }
+
+        .loading-text {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .loading-progress {
+            font-size: 16px;
+            color: #2196F3;
+        }
+
+        .load-buttons {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .error-message {
+            color: #f44336;
+            margin-top: 20px;
+            max-width: 600px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="cosmosim-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div>Frame: <span id="hud-frame">0</span> / <span id="hud-total">0</span></div>
+        <div>Time: <span id="hud-time">0.000</span>s</div>
+        <div>Entities: <span id="hud-entities">0</span> active</div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+        <button id="btn-restart" title="Restart (R)">⏮ Restart</button>
+        <button id="btn-prev" title="Previous Frame (←)">⏪ Prev</button>
+        <button id="btn-play" title="Play/Pause (Space)">▶ Play</button>
+        <button id="btn-next" title="Next Frame (→)">⏩ Next</button>
+        <span style="color: #888; margin: 0 5px;">|</span>
+        <label style="color: #fff; margin: 0 5px;">FPS:</label>
+        <input type="number" id="fps-input" min="1" max="60" value="30"
+            style="width: 50px; padding: 5px; border-radius: 4px; border: none;">
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading">
+        <div class="loading-text">CosmoSim Frame Player</div>
+        <div class="loading-progress" id="loading-progress">Ready to load frames</div>
+        <div class="load-buttons">
+            <button id="btn-load-fetch">Load from ../frames/</button>
+            <button id="btn-load-directory">Choose Directory</button>
+        </div>
+        <div class="error-message" id="error-message"></div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.152.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.152.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { loadFramesByFetch, promptForDirectory } from './frameLoader.js';
+        import { FramePlayer } from './player.js';
+
+        // Scene setup
+        const canvas = document.getElementById('cosmosim-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        // Camera
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(3, 3, 6);
+        camera.lookAt(0, 0, 0);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 10, 10);
+        scene.add(directionalLight);
+
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Player instance
+        let player = null;
+
+        // UI Elements
+        const loadingOverlay = document.getElementById('loading');
+        const loadingProgress = document.getElementById('loading-progress');
+        const errorMessage = document.getElementById('error-message');
+        const btnLoadFetch = document.getElementById('btn-load-fetch');
+        const btnLoadDirectory = document.getElementById('btn-load-directory');
+        const btnPlay = document.getElementById('btn-play');
+        const btnRestart = document.getElementById('btn-restart');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const fpsInput = document.getElementById('fps-input');
+        const hudFrame = document.getElementById('hud-frame');
+        const hudTotal = document.getElementById('hud-total');
+        const hudTime = document.getElementById('hud-time');
+        const hudEntities = document.getElementById('hud-entities');
+
+        // Frame load progress listener
+        window.addEventListener('frameLoadProgress', (e) => {
+            const { current, total } = e.detail;
+            loadingProgress.textContent = `Loading frames: ${current}${total !== '?' ? ` / ${total}` : '...'}`;
+        });
+
+        // Load frames via fetch
+        btnLoadFetch.addEventListener('click', async () => {
+            try {
+                errorMessage.textContent = '';
+                loadingProgress.textContent = 'Loading frames...';
+                btnLoadFetch.disabled = true;
+                btnLoadDirectory.disabled = true;
+
+                const frames = await loadFramesByFetch('../frames/frame_', 1000);
+
+                if (frames.length === 0) {
+                    throw new Error('No frames found in ../frames/');
+                }
+
+                initializePlayer(frames);
+            } catch (error) {
+                errorMessage.textContent = `Error: ${error.message}`;
+                console.error(error);
+                btnLoadFetch.disabled = false;
+                btnLoadDirectory.disabled = false;
+            }
+        });
+
+        // Load frames from directory
+        btnLoadDirectory.addEventListener('click', async () => {
+            try {
+                errorMessage.textContent = '';
+                loadingProgress.textContent = 'Select directory...';
+
+                const frames = await promptForDirectory();
+
+                if (frames.length === 0) {
+                    throw new Error('No JSON frames found in selected directory');
+                }
+
+                initializePlayer(frames);
+            } catch (error) {
+                errorMessage.textContent = `Error: ${error.message}`;
+                console.error(error);
+            }
+        });
+
+        // Initialize player with loaded frames
+        function initializePlayer(frames) {
+            player = new FramePlayer(frames, scene);
+            player.initializeEntities();
+            player.updateFrame();
+
+            loadingOverlay.classList.add('hidden');
+            updateHUD();
+        }
+
+        // Button handlers
+        btnPlay.addEventListener('click', () => {
+            if (!player) return;
+            player.toggle();
+            updatePlayButton();
+        });
+
+        btnRestart.addEventListener('click', () => {
+            if (!player) return;
+            player.restart();
+            updatePlayButton();
+            updateHUD();
+        });
+
+        btnPrev.addEventListener('click', () => {
+            if (!player) return;
+            player.prev();
+            updateHUD();
+        });
+
+        btnNext.addEventListener('click', () => {
+            if (!player) return;
+            player.next();
+            updateHUD();
+        });
+
+        fpsInput.addEventListener('input', () => {
+            if (!player) return;
+            player.setFPS(parseInt(fpsInput.value) || 30);
+        });
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (!player) return;
+
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    player.toggle();
+                    updatePlayButton();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    player.next();
+                    updateHUD();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    player.prev();
+                    updateHUD();
+                    break;
+                case 'KeyR':
+                    e.preventDefault();
+                    player.restart();
+                    updatePlayButton();
+                    updateHUD();
+                    break;
+            }
+        });
+
+        // Update play button text
+        function updatePlayButton() {
+            if (!player) return;
+            btnPlay.textContent = player.isPlaying ? '⏸ Pause' : '▶ Play';
+        }
+
+        // Update HUD
+        function updateHUD() {
+            if (!player) return;
+            const info = player.getFrameInfo();
+            hudFrame.textContent = info.frame;
+            hudTotal.textContent = info.total;
+            hudTime.textContent = info.time.toFixed(3);
+            hudEntities.textContent = info.activeCount;
+        }
+
+        // Animation loop
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+
+            if (player) {
+                player.update(currentTime);
+                updateHUD();
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', onWindowResize);
+
+        // Start animation loop
+        animate();
+    </script>
+</body>
+
+</html>
