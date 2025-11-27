@@ -11,6 +11,7 @@ from typing import Optional, Tuple, Any
 from state import UniverseConfig, UniverseState
 from topologies import get_topology_handler
 from topologies.base_topology import Topology
+from environment.expansion import get_expansion_handler
 
 
 class EnvironmentEngine:
@@ -51,15 +52,8 @@ class EnvironmentEngine:
         # For now, substrate support is disabled
         self.substrate = None
         
-        # Expansion parameters
-        self.expansion_rate = 0.0
-        if hasattr(config, "expansion_factor"):
-            # Derive expansion rate from expansion_factor if available
-            # H = (da/dt) / a ≈ expansion_rate
-            self.expansion_rate = 0.0  # Placeholder for now
-        
-        # Expansion center (defaults to origin)
-        self.expansion_center = jnp.zeros(config.dim)
+        # Load expansion handler
+        self.expansion = get_expansion_handler(config)
     
     def apply_environment(
         self,
@@ -97,51 +91,14 @@ class EnvironmentEngine:
             substrate_force = self.substrate.force_at(pos, vel)
             force = force + substrate_force
         
-        # 3. Apply expansion effects (if expansion is active)
-        if self.expansion_rate != 0.0:
-            pos, vel = self._apply_expansion(pos, vel, dt)
+        # 3. Apply expansion model (if any)
+        if self.expansion is not None:
+            pos, vel = self.expansion.apply(pos, vel, dt)
         
         # 4. Apply topology constraints (always applied)
         pos = self.topology.wrap_position(pos)
         
         return pos, vel, force
-    
-    def _apply_expansion(
-        self,
-        pos: jnp.ndarray,
-        vel: jnp.ndarray,
-        dt: float
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        """
-        Apply Hubble-like expansion to positions and velocities.
-        
-        Implements radial expansion from a center point:
-        - Position: r' = r + (r - r_center) * H * dt
-        - Velocity: v' = v + (r - r_center) * H
-        
-        where H is the expansion rate (Hubble parameter).
-        
-        Args:
-            pos: Position array of shape (N, dim)
-            vel: Velocity array of shape (N, dim)
-            dt: Timestep
-        
-        Returns:
-            Tuple of (expanded_pos, expanded_vel)
-        """
-        # Compute offset from expansion center
-        offset = pos - self.expansion_center
-        
-        # Radial expansion velocity: v_expansion = H * r
-        expansion_velocity = offset * self.expansion_rate
-        
-        # Update positions
-        pos_expanded = pos + expansion_velocity * dt
-        
-        # Update velocities (add Hubble flow)
-        vel_expanded = vel + expansion_velocity
-        
-        return pos_expanded, vel_expanded
     
     def compute_distance(
         self,
@@ -168,16 +125,22 @@ class EnvironmentEngine:
         """
         Set the expansion rate (Hubble parameter).
         
+        This updates the expansion handler if it's a LinearExpansion.
+        
         Args:
             rate: Expansion rate H (typical units: 1/time)
         """
-        self.expansion_rate = rate
+        if self.expansion is not None and hasattr(self.expansion, 'rate'):
+            self.expansion.rate = rate
     
     def set_expansion_center(self, center: jnp.ndarray):
         """
         Set the center point for expansion.
         
+        This updates the expansion handler if it supports a center.
+        
         Args:
             center: Center position of shape (dim,)
         """
-        self.expansion_center = center
+        if self.expansion is not None and hasattr(self.expansion, 'center'):
+            self.expansion.center = center

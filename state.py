@@ -22,8 +22,13 @@ class UniverseConfig:
     G: float            # gravitational constant-like parameter
     # Optional fields with defaults – placed after required fields
     dim: int = 2        # Spatial dimensionality (2, 3, etc.)
-    topology_type: int = 0  # 0 = FLAT, 1 = TORUS (future types reserved)
+    topology_type: int = 0  # 0 = FLAT, 1 = TORUS, 2 = SPHERE, 3 = BUBBLE
     bounds: float | None = None  # None means infinite flat space
+    # Expansion parameters
+    expansion_type: str = "none"  # "none", "linear", "anisotropic"
+    expansion_rate: float = 0.0   # Hubble parameter H (for linear expansion)
+    expansion_center: tuple = (0.0, 0.0, 0.0)  # Center of expansion
+    expansion_axes: tuple = (0.0, 0.0, 0.0)  # Axis-wise rates (Hx, Hy, Hz) for anisotropic
 
 @dataclass
 class UniverseState:
