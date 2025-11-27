@@ -25,10 +25,16 @@ class UniverseConfig:
     topology_type: int = 0  # 0 = FLAT, 1 = TORUS, 2 = SPHERE, 3 = BUBBLE
     bounds: float | None = None  # None means infinite flat space
     # Expansion parameters
-    expansion_type: str = "none"  # "none", "linear", "anisotropic"
+    expansion_type: str = "none"  # "none", "linear", "anisotropic", "scale_factor"
     expansion_rate: float = 0.0   # Hubble parameter H (for linear expansion)
     expansion_center: tuple = (0.0, 0.0, 0.0)  # Center of expansion
     expansion_axes: tuple = (0.0, 0.0, 0.0)  # Axis-wise rates (Hx, Hy, Hz) for anisotropic
+    expansion_mode: str = "linear"  # "linear", "matter", "radiation", "inflation" for scale_factor
+    H: float = 0.01  # Hubble-like constant for scale_factor expansion
+    # Bubble expansion parameters
+    bubble_radius: float = 10.0  # Initial bubble size
+    bubble_expand: bool = False  # Should the bubble itself inflate?
+    curvature_k: float = 0.0  # Curvature parameter for interior metric
 
 @dataclass
 class UniverseState:
