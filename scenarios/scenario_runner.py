@@ -71,6 +71,7 @@ def build_initial_state(config: UniverseConfig):
     # creates its own config/state pair. In a more advanced version,
     # we might use the passed config to override parameters.
     _, state = binary_star_system()
+    state.scenario_name = "scenario_runner"
     return state
 
 

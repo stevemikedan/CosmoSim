@@ -25,6 +25,7 @@ def build_initial_state(config: UniverseConfig):
     state = spawn_entity(state, jnp.array([-2.0, 0.0] + [0.0] * (config.dim - 2)), jnp.zeros(config.dim), 2.0, 1)
     state = spawn_entity(state, jnp.array([ 0.0, 0.0] + [0.0] * (config.dim - 2)), jnp.zeros(config.dim), 1.0, 1)
     state = spawn_entity(state, jnp.array([ 2.0, 0.0] + [0.0] * (config.dim - 2)), jnp.zeros(config.dim), 2.0, 1)
+    state.scenario_name = "manual_run"
     return state
 
 

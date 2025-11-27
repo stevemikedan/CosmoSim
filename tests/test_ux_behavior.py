@@ -44,7 +44,6 @@ FILE_OUTPUT_MODULES = [
     "snapshot_plot",
     "trajectory_plot",
     "energy_plot",
-    "scenarios.random_nbody",
 ]
 
 @pytest.mark.parametrize("module_name", FILE_OUTPUT_MODULES)

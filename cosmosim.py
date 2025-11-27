@@ -121,44 +121,34 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
     # -----------------------------------------------------------------
     # JSON Export Mode
     # -----------------------------------------------------------------
-    # -----------------------------------------------------------------
-    # JSON Export Mode
-    # -----------------------------------------------------------------
     if getattr(args, "export_json", False):
-        # Determine export directory
-        if getattr(args, "export_json_dir", None):
-            # 1. Preserve raw user string EXACTLY for export_simulation()
-            raw_export_dir = args.export_json_dir   # e.g. "./custom_frames"
-            # 2. Convert to Path ONLY for mkdir
-            export_dir = pathlib.Path(raw_export_dir)
-        else:
-            # Default to frames/<scenario_name>
-            export_dir = pathlib.Path("frames") / scenario_name
-            raw_export_dir = str(export_dir)
-            
-        # Ensure directory exists
-        export_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Set environment variable for consistency
-        os.environ["COSMOSIM_EXPORT_JSON_DIR"] = str(export_dir.resolve())
-        
-        # Determine number of steps (default 100 if not provided)
+        import datetime
+
+        # Determine number of frames to export
         steps_value = args.steps if args.steps is not None else 100
 
-# # POSIX-normalized path so tests pass consistently
-#         export_dir_str = export_dir.as_posix()
+        # Generate timestamped export directory name
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        export_dir_name = f"{scenario_name}_{steps_value}_steps_{timestamp}"
+        
+        # Always use frames as the root directory
+        full_export_dir = pathlib.Path("frames") / export_dir_name
 
-        # Run the exporter
-        # CRITICAL: Always pass the resolved export_dir explicitly
-        final_state = export_simulation(
+        # Ensure directory exists
+        full_export_dir.mkdir(parents=True, exist_ok=True)
+
+        # Set environment variable for other tools
+        os.environ["COSMOSIM_EXPORT_JSON_DIR"] = str(full_export_dir.resolve())
+
+        # Export simulation to the timestamped directory
+        export_simulation(
             cfg,
             state,
             steps=steps_value,
-            output_dir=raw_export_dir
+            output_dir=str(full_export_dir),
         )
 
-        # Success summary
-        print(f"\nExported {steps_value} JSON frames to: {export_dir}")
+        print(f"\nExported {steps_value} JSON frames to: {full_export_dir}")
         return
 
     # Step 4: Prepare run arguments
@@ -263,12 +253,6 @@ def main(argv: list[str] | None = None) -> int:
         "--export-json",
         action="store_true",
         help="Export simulation frames to JSON instead of running the scenario normally."
-    )
-
-    parser.add_argument(
-        "--export-json-dir",
-        help="Directory to write JSON frames (default: ./frames)",
-        default="./frames"
     )
 
     parser.add_argument(

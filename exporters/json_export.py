@@ -148,7 +148,9 @@ def export_frame(state: Any, frame_index: int, output_dir: str | Path) -> None:
     # Overwrite the placeholder ``frame`` value with the actual index.
     frame_dict["frame"] = frame_index
 
-    
+    filename = f"frame_{frame_index:05d}.json"
+    with open(out_path / filename, "w") as f:
+        json.dump(frame_dict, f, indent=2)
 
 def export_simulation(cfg: Any, state: Any, *, steps: int, output_dir: str | Path) -> Any:
     """Run a simulation for ``steps`` frames, exporting each to JSON.
@@ -165,6 +167,7 @@ def export_simulation(cfg: Any, state: Any, *, steps: int, output_dir: str | Pat
     Returns:
         The final :class:`UniverseState` after ``steps`` updates.
     """
+    # Use the provided output directory directly
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 

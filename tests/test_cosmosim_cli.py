@@ -283,8 +283,14 @@ def test_scenario_display_name_uses_short_name():
 
 @patch("cosmosim.export_simulation")
 @patch("os.environ", new_callable=dict)
-def test_run_scenario_export_json_default_dir(mock_environ, mock_export):
-    """Test JSON export with default directory (frames/<scenario_name>)."""
+@patch("datetime.datetime")
+def test_run_scenario_export_json_default_dir(mock_datetime, mock_environ, mock_export):
+    """Test JSON export with timestamped directory in frames/."""
+    # Mock timestamp
+    mock_now = MagicMock()
+    mock_now.strftime.return_value = "2025-11-26T23-15-19"
+    mock_datetime.now.return_value = mock_now
+    
     # Setup mock scenario
     fake_cfg = object()
     fake_state = object()
@@ -301,63 +307,33 @@ def test_run_scenario_export_json_default_dir(mock_environ, mock_export):
         headless=False,
         output_dir=None,
         export_json=True,
-        export_json_dir=None,
         config_dump=False,
     )
     
     # Run
     cosmosim.run_scenario(fake_module, args, "test_scenario")
     
-    # Verify export_simulation called with correct output_dir
-    expected_dir = str(Path("frames") / "test_scenario")
+    # Verify export_simulation called with timestamped directory
+    expected_dir = str(Path("frames") / "test_scenario_50_steps_2025-11-26T23-15-19")
     mock_export.assert_called_once_with(
         fake_cfg, fake_state, steps=50, output_dir=expected_dir
     )
     
     # Verify environment variable set
-    assert mock_environ.get("COSMOSIM_EXPORT_JSON_DIR") == str(Path(expected_dir).resolve())
+    expected_full_path = str(Path(expected_dir).resolve())
+    assert mock_environ.get("COSMOSIM_EXPORT_JSON_DIR") == expected_full_path
 
-
-@patch("cosmosim.export_simulation")
-@patch("os.environ", new_callable=dict)
-def test_run_scenario_export_json_custom_dir(mock_environ, mock_export):
-    """Test JSON export with custom directory."""
-    # Setup mock scenario
-    fake_cfg = object()
-    fake_state = object()
-    fake_module = SimpleNamespace(
-        __name__="fake_scenario",
-        build_config=MagicMock(return_value=fake_cfg),
-        build_initial_state=MagicMock(return_value=fake_state),
-        run=MagicMock(),
-    )
-    
-    # Setup args
-    custom_dir = "./custom_frames"
-    args = SimpleNamespace(
-        steps=50,
-        headless=False,
-        output_dir=None,
-        export_json=True,
-        export_json_dir=custom_dir,
-        config_dump=False,
-    )
-    
-    # Run
-    cosmosim.run_scenario(fake_module, args, "test_scenario")
-    
-    # Verify export_simulation called with correct output_dir
-    mock_export.assert_called_once_with(
-        fake_cfg, fake_state, steps=50, output_dir=custom_dir
-    )
-    
-    # Verify environment variable set
-    assert mock_environ.get("COSMOSIM_EXPORT_JSON_DIR") == str(Path(custom_dir).resolve())
 
 
 @patch("cosmosim.export_simulation")
-def test_run_scenario_export_json_steps_default(mock_export):
+@patch("datetime.datetime")
+def test_run_scenario_export_json_steps_default(mock_datetime, mock_export):
     """Test JSON export uses default steps if not provided."""
+    # Mock timestamp
+    mock_now = MagicMock()
+    mock_now.strftime.return_value = "2025-11-26T23-15-19"
+    mock_datetime.now.return_value = mock_now
+    
     # Setup mock scenario
     fake_cfg = object()
     fake_state = object()
@@ -374,15 +350,14 @@ def test_run_scenario_export_json_steps_default(mock_export):
         headless=False,
         output_dir=None,
         export_json=True,
-        export_json_dir=None,
         config_dump=False,
     )
     
     # Run
     cosmosim.run_scenario(fake_module, args, "test_scenario")
     
-    # Verify export_simulation called with default steps (100)
-    expected_dir = str(Path("frames") / "test_scenario")
+    # Verify export_simulation called with default steps (100) and timestamped directory
+    expected_dir = str(Path("frames") / "test_scenario_100_steps_2025-11-26T23-15-19")
     mock_export.assert_called_once_with(
         fake_cfg, fake_state, steps=100, output_dir=expected_dir
     )
@@ -464,7 +439,6 @@ def test_main_wires_export_json_flags_into_run_scenario():
                     exit_code = cosmosim.main([
                         "--scenario", "manual_run",
                         "--export-json",
-                        "--export-json-dir", "out_dir",
                         "--steps", "123"
                     ])
     
@@ -479,5 +453,4 @@ def test_main_wires_export_json_flags_into_run_scenario():
     
     # Verify the args have correct export flags
     assert args_arg.export_json == True
-    assert args_arg.export_json_dir == "out_dir"
     assert args_arg.steps == 123
