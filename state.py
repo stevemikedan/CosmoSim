@@ -24,6 +24,9 @@ class UniverseConfig:
     dim: int = 2        # Spatial dimensionality (2, 3, etc.)
     topology_type: int = 0  # 0 = FLAT, 1 = TORUS, 2 = SPHERE, 3 = BUBBLE
     bounds: float | None = None  # None means infinite flat space
+    # Physics stabilization
+    gravity_softening: float = 0.05  # Softening length to prevent singularities
+    integrator: str = "euler"  # "euler" (semi-implicit) or "leapfrog" (velocity Verlet)
     # Expansion parameters
     expansion_type: str = "none"  # "none", "linear", "anisotropic", "scale_factor"
     expansion_rate: float = 0.0   # Hubble parameter H (for linear expansion)

@@ -17,55 +17,7 @@ import os
 from state import UniverseConfig, UniverseState, initialize_state
 from environment.engine import EnvironmentEngine
 from entities import allocate_entities
-
-
-def compute_forces(pos, vel, mass, active, config):
-    """
-    Compute gravitational forces.
-    Mirrors logic from kernel.update_vector_physics.
-    """
-    # 1. Compute pairwise displacement: r_j - r_i
-    # Shape: (N, N, dim)
-    disp = pos[None, :, :] - pos[:, None, :]
-    
-    # 2. Compute distances
-    dist_sq = jnp.sum(disp**2, axis=-1) + 1e-6
-    dist = jnp.sqrt(dist_sq)
-    
-    # Mask mass of inactive entities
-    active_mass = jnp.where(active, mass, 0.0)
-    
-    # 3. Compute gravitational force magnitudes
-    # F = G * m1 * m2 / r^2
-    force_mag = config.G * mass[:, None] * active_mass[None, :] / dist_sq
-    
-    # 4. Compute force vectors
-    force_vec = disp * (force_mag / dist)[:, :, None]
-    
-    # Sum forces
-    total_force = jnp.sum(force_vec, axis=1)
-    
-    return total_force
-
-
-def update_step(pos, vel, force, mass, active, dt):
-    """
-    Integrate positions and velocities.
-    Mirrors logic from kernel.update_vector_physics.
-    """
-    # Acceleration = Force / Mass
-    acc = force / (mass[:, None] + 1e-6)
-    
-    # Semi-implicit Euler
-    new_vel = vel + acc * dt
-    new_pos = pos + new_vel * dt
-    
-    # Apply active mask
-    active_mask = active[:, None]
-    final_vel = jnp.where(active_mask, new_vel, vel)
-    final_pos = jnp.where(active_mask, new_pos, pos)
-    
-    return final_pos, final_vel
+from physics_utils import compute_gravity_forces, integrate_euler, integrate_leapfrog
 
 
 def run_sim(config, steps=200, gravity=True, seed=42, save_every=1):
@@ -106,7 +58,7 @@ def run_sim(config, steps=200, gravity=True, seed=42, save_every=1):
     for step in range(steps):
         # 1. Compute Forces
         if gravity:
-            force = compute_forces(pos, vel, mass, active, config)
+            force = compute_gravity_forces(pos, mass, active, config)
         else:
             force = jnp.zeros_like(pos)
             
@@ -125,7 +77,10 @@ def run_sim(config, steps=200, gravity=True, seed=42, save_every=1):
         pos, vel, force = env.apply_environment(pos, vel, force, current_state)
         
         # 3. Update Physics (Integration)
-        pos, vel = update_step(pos, vel, force, mass, active, config.dt)
+        if config.integrator == "leapfrog":
+            pos, vel = integrate_leapfrog(pos, vel, force, mass, active, config.dt)
+        else:  # Default to Euler
+            pos, vel = integrate_euler(pos, vel, force, mass, active, config.dt)
         
         # --- STABILIZATION PATCH: clamp + sanitize -------------------------
         pos_np = np.array(pos)

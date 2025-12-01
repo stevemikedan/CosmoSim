@@ -523,3 +523,370 @@ immediate YouTube demo readiness by Phase E2–E4
 zero architectural dead-ends
 
 everything is broken into AI IDE promptable units
+
+
+⭐ COSMOSIM EDUCATION MODULE
+FULL PREREQUISITE MATRIX
+
+This will tell you:
+
+what must already exist
+
+what must be prepared
+
+what must be refactored or stabilized
+
+what new scaffolding must be created
+
+when certain physics features must be implemented before later phases
+
+This ensures we never run ahead of the engine’s capabilities.
+
+⭐ GLOBAL PREREQUISITE LAYER
+
+(Applies to ALL educational module phases)
+
+These must be stable before we build ANY educational scenarios.
+
+✔ PR1 — Working Simulation Loop
+
+run_sim.py must produce safe, non-NaN frames.
+
+Stabilization clamps must work.
+
+Naming convention stable.
+
+✔ PR2 — Cosmosim Viewer must be functional
+
+You must be able to:
+
+load JSON outputs
+
+play frames
+
+pause, seek
+
+reset viewer state
+
+switch simulations easily
+
+This is mostly done.
+
+✔ PR3 — Overlay System in Viewer
+
+Already partially implemented. Must include:
+
+grid
+
+axes
+
+bounds
+
+topology overlays
+
+Before Education Mode, we need:
+
+reliable toggles
+
+no UI conflicts
+
+overlays synchronized with camera
+
+✔ PR4 — Scenario Reset & Load APIs
+
+Viewer must have:
+
+initializePlayer(frames)
+
+resetSimulation()
+
+loadFramesFromJSON()
+
+ability to apply config overrides
+
+This is now partially working.
+
+✔ PR5 — UniverseConfig MUST support overrides
+
+Every educational scenario needs to override:
+
+topology
+
+expansion
+
+substrate
+
+dt
+
+entity count
+
+physics_mode
+
+Your engine must safely handle:
+
+missing params
+
+unused fields
+
+different physics modes
+
+✔ PR6 — Safe Camera Behavior
+
+Camera must:
+
+center correctly
+
+auto-rescale or at least not break for expansion
+
+reset when new scenario loads
+
+This prevents confusing visual artifacts.
+
+✔ PR7 — Repository Folder Layout Locked In
+
+You need a stable structure before adding scenarios:
+
+/viewer
+    test.html
+    viewer.js
+    overlays.js
+    scenario_loader.js        (new)
+    ui_components/            (new)
+
+/education_scenarios
+    flat_space.json
+    torus_world.json
+    expansion_basic.json
+    ... etc
+
+/sim_output
+    (gitignored)
+
+✔ PR8 — Core Physics Modes Stable
+
+These physics systems must be stable enough for educational demos:
+
+vector substrate (N-body)
+
+topology engine
+
+expansion engine
+
+No need for fields or superfluids yet.
+
+⭐ PER-PHASE PREREQUISITES
+
+Now the critical piece: What each phase requires BEFORE you attempt it.
+
+This is where the roadmap becomes development-friendly.
+
+🌟 PHASE E1 — UI Framework & Scenario Loader
+PREREQUISITES:
+✔ PR1 – Sim loop stable
+✔ PR2 – Viewer functional
+✔ PR3 – Overlays stable
+✔ PR4 – Reset/Load API in viewer
+✔ PR5 – UniverseConfig override-safe
+✔ PR6 – Camera resets correctly
+✔ PR7 – Repo structure ready
+
+No physics prereqs — this is pure UI.
+
+🌟 PHASE E2 — Light Path Demonstrator
+PREREQUISITES:
+✔ E1 completed (UI navigation + scenario loader)
+✔ PR5 — UniverseConfig override-safe
+✔ PR8 — N-body physics stable
+PLUS:
+✔ PR9 — Entity Renderer must support new entity types
+
+viewer must differentiate photons from particles
+
+photon rendering style (line, glow, small dot)
+
+✔ PR10 — Basic line drawing overlay
+
+Photons leave trails → must have line segment rendering system.
+
+🌟 PHASE E3 — Topology Explorer
+PREREQUISITES:
+✔ E1 (navigation + loader)
+✔ E2 (photon path drawing)
+✔ PR3 — Topology overlays working
+✔ PR10 — Line/curve tracer working
+✔ PR11 — Reliable distance + wrap functions
+
+You already have this in topology engine — must confirm behavior.
+
+Extra:
+
+✔ PR12 — Geodesic tracer scaffolding
+
+ability to simulate a test particle in one step without physics loop
+
+or to override gravitational forces
+
+🌟 PHASE E4 — Expansion Explorer
+PREREQUISITES:
+✔ E3
+✔ PR3 — Overlays
+✔ PR6 — Camera must not break during expansion
+✔ PR13 — Expansion engine must be stable
+
+linear
+
+scale-factor
+
+bubble
+
+✔ PR14 — Grid overlays must scale correctly
+
+This ensures:
+
+comoving grid
+
+proper grid
+
+Hubble arrows
+
+can animate independently.
+
+🌟 PHASE E5 — Curvature Explorer
+PREREQUISITES:
+✔ E4 (expansion)
+✔ PR15 — Newtonian gravity stable
+
+before we visualize curvature.
+
+✔ PR16 — 2D curvature grid computation
+
+ability to compute ∇²Φ on a grid
+
+requires simple lattice baked into viewer or engine
+
+✔ PR17 — Heatmap renderer
+
+Viewer must render a color grid.
+
+🌟 PHASE E6 — Scalar Field Substrate
+PREREQUISITES:
+✔ E5 (curvature)
+✔ PR18 — Add lattice to UniverseState
+
+(H, W) grid
+
+dt, dx must be stable
+
+boundaries must obey topology
+
+✔ PR19 — PDE stepping system
+
+separate from N-body
+
+synchronous with main sim loop
+
+safe dt constraints
+
+🌟 PHASE E7 — Superfluid Substrate
+PREREQUISITES:
+✔ E6 — Scalar field substrate fully working
+✔ PR20 — Complex number lattice
+
+psi_real
+
+psi_imag
+
+✔ PR21 — Stable Laplacian operator
+
+needed for nonlinear Schrödinger / GPE
+
+✔ PR22 — Phase visualization system
+
+hue-mapped based on angle
+
+magnitude mapped to brightness
+
+🌟 PHASE E8 — Superlattice Potential + Exotic Cosmology
+PREREQUISITES:
+✔ E7
+✔ PR23 — Superlattice potential generator
+
+consistent grid resolution
+
+periodic or toroidal metric
+
+multi-scale modulation (k1, k2, etc.)
+
+✔ PR24 — Field–Entity coupling
+
+integrate field gradients into particle forces
+
+feed particle mass distribution into field potential
+
+⭐ GLOBAL PREREQUISITES FOR YOUTUBE-READY DEMOS
+
+To produce videos as soon as possible:
+
+You need only:
+
+PR1 → PR7
+
+plus E1, E2, E3, E4
+
+This yields:
+
+flat universe demo
+
+curved space demo
+
+topology demo
+
+bubble universe visual explanation
+
+light path demo
+
+expansion demo
+
+Meaning:
+
+⚡ You can start producing educational demos BEFORE doing any field or substrate physics.
+
+⭐ Summary:
+
+Below is the entire prerequisite structure condensed:
+
+GLOBAL PREREQS (before any E-phase)
+
+PR1–PR7
+
+E1 — UI Framework
+
+requires: PR1–PR7
+
+E2 — Light Paths
+
+requires: E1 + PR9–PR10
+
+E3 — Topology Explorer
+
+requires: E2 + PR11–PR12
+
+E4 — Expansion Explorer
+
+requires: E3 + PR13–PR14
+
+E5 — Curvature Explorer
+
+requires: E4 + PR15–PR17
+
+E6 — Scalar Field
+
+requires: E5 + PR18–PR19
+
+E7 — Superfluid Field
+
+requires: E6 + PR20–PR22
+
+E8 — Superlattice + Exotic Cosmology
+
+requires: E7 + PR23–PR24

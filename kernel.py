@@ -5,6 +5,7 @@ import jax.numpy as jnp
 from state import UniverseConfig, UniverseState
 from entities import spawn_entity, despawn_entity
 from topology import enforce_boundaries, apply_topology
+from physics_utils import compute_gravity_forces, integrate_euler, integrate_leapfrog
 
 
 def update_vector_physics(state: UniverseState, config: UniverseConfig) -> UniverseState:
@@ -13,58 +14,36 @@ def update_vector_physics(state: UniverseState, config: UniverseConfig) -> Unive
     Returns:
         Updated universe state with positions moved by velocity * dt
     """
-    # 1. Compute pairwise displacement: r_j - r_i
-    # Shape: (N, N, dim)
-    # disp[i, j] is vector from i to j
-    disp = state.entity_pos[None, :, :] - state.entity_pos[:, None, :]
+    # 1. Compute gravitational forces using softened gravity
+    total_force = compute_gravity_forces(
+        state.entity_pos,
+        state.entity_mass,
+        state.entity_active,
+        config
+    )
     
-    # 2. Compute distances with epsilon to avoid singularity
-    # Shape: (N, N)
-    dist_sq = jnp.sum(disp**2, axis=-1) + 1e-6
-    dist = jnp.sqrt(dist_sq)
+    # 2. Integrate using selected integrator
+    if config.integrator == "leapfrog":
+        new_pos, new_vel = integrate_leapfrog(
+            state.entity_pos,
+            state.entity_vel,
+            total_force,
+            state.entity_mass,
+            state.entity_active,
+            config.dt
+        )
+    else:  # Default to Euler
+        new_pos, new_vel = integrate_euler(
+            state.entity_pos,
+            state.entity_vel,
+            total_force,
+            state.entity_mass,
+            state.entity_active,
+            config.dt
+        )
     
-    # Mask mass of inactive entities so they don't exert gravity
-    # Shape: (N,)
-    active_mass = jnp.where(state.entity_active, state.entity_mass, 0.0)
-    
-    # 3. Compute gravitational force magnitudes
-    # F = G * m1 * m2 / r^2
-    # Use real mass for receiver (i) and active_mass for source (j)
-    # This ensures inactive entities don't exert gravity.
-    # Shape: (N, N)
-    force_mag = config.G * state.entity_mass[:, None] * active_mass[None, :] / dist_sq
-    
-    # 4. Compute acceleration
-    # acc[i] = sum_j (F_ij * disp_ij / dist_ij) / m_i
-    # We need to be careful with broadcasting.
-    # disp / dist[:, :, None] gives unit vectors (N, N, dim)
-    force_vec = disp * (force_mag / dist)[:, :, None]
-    
-    # Sum forces on each entity i (sum over j)
-    # Shape: (N, dim)
-    total_force = jnp.sum(force_vec, axis=1)
-    
-    # Acceleration = Force / Mass
-    # Handle zero mass to avoid division by zero (though mass should be > 0)
-    # Shape: (N, dim)
-    acc = total_force / (state.entity_mass[:, None] + 1e-6)
-    
-    # 5. Semi-implicit Euler integration
-    # vel_new = vel + acc * dt
-    new_vel = state.entity_vel + acc * config.dt
-    
-    # pos_new = pos + vel_new * dt
-    new_pos = state.entity_pos + new_vel * config.dt
-    
-    # 6. Apply active mask
-    # Only update active entities. Inactive ones stay put.
-    active_mask = state.entity_active[:, None]
-    
-    final_vel = jnp.where(active_mask, new_vel, state.entity_vel)
-    final_pos = jnp.where(active_mask, new_pos, state.entity_pos)
-    
-    # 7. Apply topology to positions (and velocities if needed)
-    final_pos, final_vel = apply_topology(final_pos, final_vel, config)
+    # 3. Apply topology to positions (and velocities if needed)
+    final_pos, final_vel = apply_topology(new_pos, new_vel, config)
     
     return state.replace(entity_pos=final_pos, entity_vel=final_vel)
 
