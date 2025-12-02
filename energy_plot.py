@@ -70,8 +70,14 @@ def build_initial_state(config: UniverseConfig):
 def run(config: UniverseConfig, state):
     print("Initializing Energy Diagnostics...")
     
-    jit_step = jax.jit(step_simulation)
-    jit_energy = jax.jit(compute_energy)
+    # We capture config in closures to avoid hashing issues with static_argnums
+    @jax.jit
+    def jit_step(state):
+        return step_simulation(state, config)
+    
+    @jax.jit
+    def jit_energy(state):
+        return compute_energy(state, config)
     
     steps = []
     ke_history = []
@@ -81,8 +87,8 @@ def run(config: UniverseConfig, state):
     STEPS = 200
     print(f"Running simulation and tracking energy for {STEPS} steps...")
     for i in range(STEPS):
-        state = jit_step(state, config)
-        ke, pe = jit_energy(state, config)
+        state = jit_step(state)
+        ke, pe = jit_energy(state)
         
         steps.append(i)
         ke_history.append(ke)
