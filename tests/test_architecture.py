@@ -179,8 +179,10 @@ def test_physics_jit_compatible():
     cfg, state = make_config_and_state()
 
     try:
-        jitted = jax.jit(step_simulation)
-        out = jitted(state, cfg)
+        @jax.jit
+        def jitted(state):
+            return step_simulation(state, cfg)
+        out = jitted(state)
         assert isinstance(out, UniverseState)
     except Exception as e:
         raise AssertionError(f"step_simulation failed under JIT: {e}")

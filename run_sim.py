@@ -17,7 +17,17 @@ import os
 from state import UniverseConfig, UniverseState, initialize_state
 from environment.engine import EnvironmentEngine
 from entities import allocate_entities
-from physics_utils import compute_gravity_forces, integrate_euler, integrate_leapfrog
+from physics_utils import (
+    compute_gravity_forces,
+    integrate_euler,
+    integrate_leapfrog,
+    kinetic_energy,
+    potential_energy,
+    total_energy,
+    momentum,
+    center_of_mass,
+    adjust_timestep
+)
 
 
 def run_sim(config, steps=200, gravity=True, seed=42, save_every=1):
@@ -52,6 +62,7 @@ def run_sim(config, steps=200, gravity=True, seed=42, save_every=1):
     active = jnp.array(active_np)
     
     frames = []
+    diagnostics = []  # PS1.3: Energy and momentum diagnostics
     
     print(f"Running {steps} steps...")
     
@@ -76,11 +87,16 @@ def run_sim(config, steps=200, gravity=True, seed=42, save_every=1):
         
         pos, vel, force = env.apply_environment(pos, vel, force, current_state)
         
-        # 3. Update Physics (Integration)
+        # 3. Adaptive Timestep (PS1.4)
+        current_dt = config.dt
+        if config.enable_adaptive_dt:
+            current_dt = adjust_timestep(current_dt, vel, force, mass, config)
+            
+        # 4. Update Physics (Integration)
         if config.integrator == "leapfrog":
-            pos, vel = integrate_leapfrog(pos, vel, force, mass, active, config.dt)
+            pos, vel = integrate_leapfrog(pos, vel, force, mass, active, current_dt)
         else:  # Default to Euler
-            pos, vel = integrate_euler(pos, vel, force, mass, active, config.dt)
+            pos, vel = integrate_euler(pos, vel, force, mass, active, current_dt)
         
         # --- STABILIZATION PATCH: clamp + sanitize -------------------------
         pos_np = np.array(pos)
@@ -113,7 +129,24 @@ def run_sim(config, steps=200, gravity=True, seed=42, save_every=1):
         vel = jnp.array(vel_np)
         # -------------------------------------------------------------------
 
-        # 4. Save Frame
+        # 4. Compute Diagnostics (PS1.3)
+        if config.enable_diagnostics and (step % save_every == 0):
+            KE = kinetic_energy(vel, mass, active)
+            PE = potential_energy(pos, mass, active, config)
+            E = total_energy(KE, PE)
+            P = momentum(vel, mass, active)
+            COM = center_of_mass(pos, mass, active)
+            
+            diagnostics.append({
+                "step": step,
+                "KE": float(KE),
+                "PE": float(PE),
+                "E": float(E),
+                "momentum": P.tolist(),
+                "COM": COM.tolist()
+            })
+
+        # 5. Save Frame
         if step % save_every == 0:
             # Convert to list for JSON serialization
             frames.append({
@@ -121,7 +154,7 @@ def run_sim(config, steps=200, gravity=True, seed=42, save_every=1):
                 "pos": pos_np.tolist(),
                 "vel": vel_np.tolist()
             })         
-    return frames
+    return frames, diagnostics
 
 
 def main():
@@ -222,7 +255,7 @@ def main():
     )
     
     # Run Simulation
-    frames = run_sim(
+    frames, diagnostics = run_sim(
         config, 
         steps=args.steps, 
         gravity=(args.gravity == "on"),
@@ -231,10 +264,15 @@ def main():
     )
     
     # Save Output
+    output_data = {
+        "frames": frames,
+        "diagnostics": diagnostics
+    }
+    
     with open(outfile, "w") as f:
-        json.dump({"frames": frames}, f)
+        json.dump(output_data, f)
         
-    print(f"Saved {len(frames)} frames to {outfile}")
+    print(f"Saved {len(frames)} frames and {len(diagnostics)} diagnostic records to {outfile}")
 
 
 if __name__ == "__main__":

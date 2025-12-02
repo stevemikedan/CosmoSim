@@ -27,6 +27,13 @@ class UniverseConfig:
     # Physics stabilization
     gravity_softening: float = 0.05  # Softening length to prevent singularities
     integrator: str = "euler"  # "euler" (semi-implicit) or "leapfrog" (velocity Verlet)
+    enable_diagnostics: bool = True  # Compute energy/momentum diagnostics
+    # Adaptive timestep parameters
+    enable_adaptive_dt: bool = True  # Enable adaptive timestep
+    max_dt_scale: float = 2.0  # Maximum scaling factor for dt
+    min_dt_scale: float = 0.5  # Minimum scaling factor for dt
+    velocity_threshold: float = 5.0  # Velocity threshold for reducing dt
+    acceleration_threshold: float = 10.0  # Acceleration threshold for reducing dt
     # Expansion parameters
     expansion_type: str = "none"  # "none", "linear", "anisotropic", "scale_factor"
     expansion_rate: float = 0.0   # Hubble parameter H (for linear expansion)

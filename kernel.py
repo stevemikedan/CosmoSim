@@ -53,15 +53,15 @@ def update_lattice_physics(state: UniverseState, config: UniverseConfig) -> Univ
 
 def dispatch_physics(state: UniverseState, config: UniverseConfig) -> UniverseState:
     """Dispatch to the appropriate physics kernel based on physics_mode."""
-    def vector_branch(args):
-        return update_vector_physics(args[0], args[1])
+    def vector_branch(state):
+        return update_vector_physics(state, config)
 
-    def lattice_branch(args):
-        return update_lattice_physics(args[0], args[1])
+    def lattice_branch(state):
+        return update_lattice_physics(state, config)
 
-    def reserved_branch(args):
+    def reserved_branch(state):
         # Reserved for future physics modes (VOXEL, FIELD, CUSTOM, etc.)
-        return args[0]
+        return state
 
     branches = [
         vector_branch,   # mode 0: VECTOR
@@ -70,7 +70,7 @@ def dispatch_physics(state: UniverseState, config: UniverseConfig) -> UniverseSt
     ]
 
     safe_mode = jnp.clip(config.physics_mode, 0, 2)
-    return jax.lax.switch(safe_mode, branches, (state, config))
+    return jax.lax.switch(safe_mode, branches, state)
 
 def step_simulation(state: UniverseState, config: UniverseConfig) -> UniverseState:
     """Execute one simulation timestep.

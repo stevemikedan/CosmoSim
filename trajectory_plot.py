@@ -51,14 +51,17 @@ def run(config: UniverseConfig, state):
     os.makedirs(output_dir, exist_ok=True)
 
     # JIT the physics step for speed
-    jit_step = jax.jit(step_simulation)
+    # We capture config in a closure to avoid hashing issues with static_argnums
+    @jax.jit
+    def jit_step(state):
+        return step_simulation(state, config)
 
     # Record positions over time
     trajectory = []  # list of (n_entities, 2) arrays
 
     print(f"Running {steps} steps for trajectory capture...")
     for _ in range(steps):
-        state = jit_step(state, config)
+        state = jit_step(state)
         active_mask = state.entity_active
         positions = state.entity_pos[active_mask]
         trajectory.append(positions)

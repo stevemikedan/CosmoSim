@@ -46,14 +46,16 @@ def build_initial_state(config: UniverseConfig):
 def run(config: UniverseConfig, state):
     print("Initializing Visualization (Headless Mode)...")
     
-    # JIT compile step function
-    jit_step = jax.jit(step_simulation)
+    # We capture config in a closure to avoid hashing issues with static_argnums
+    @jax.jit
+    def jit_step(state):
+        return step_simulation(state, config)
     
     print(f"Running simulation for {FRAMES} frames...")
     
     # Run loop
     for _ in range(FRAMES):
-        state = jit_step(state, config)
+        state = jit_step(state)
         
     print("Plotting final frame...")
     

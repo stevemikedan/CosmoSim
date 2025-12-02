@@ -27,7 +27,8 @@ def test_environment_basics():
         G=1.0,
         dim=3,
         topology_type=0,  # flat
-        bounds=10.0
+        bounds=10.0,
+        expansion_type="linear"  # Enable expansion for testing
     )
     
     # Create environment

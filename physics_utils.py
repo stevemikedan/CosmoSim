@@ -149,3 +149,213 @@ def integrate_leapfrog(pos, vel, force, mass, active, dt, prev_force=None):
     final_pos = jnp.where(active_mask, new_pos, pos)
     
     return final_pos, final_vel
+
+
+# ============================================================================
+# Diagnostic Functions (PS1.3)
+# ============================================================================
+
+def kinetic_energy(vel, mass, active):
+    """
+    Compute total kinetic energy of the system.
+    
+    KE = sum(0.5 * m * |v|^2) for all active particles
+    
+    Args:
+        vel: Array of shape (N, dim) - particle velocities
+        mass: Array of shape (N,) - particle masses
+        active: Array of shape (N,) - boolean mask for active particles
+    
+    Returns:
+        float - total kinetic energy
+    """
+    # Only include active particles
+    active_mass = jnp.where(active, mass, 0.0)
+    
+    # KE = 0.5 * m * v^2
+    speed_squared = jnp.sum(vel**2, axis=1)
+    ke = 0.5 * active_mass * speed_squared
+    
+    # Sum over all particles and ensure no NaNs
+    total_ke = jnp.sum(jnp.nan_to_num(ke))
+    
+    return float(total_ke)
+
+
+def potential_energy(pos, mass, active, config):
+    """
+    Compute gravitational potential energy with softening.
+    
+    Uses the same softening as compute_gravity_forces:
+    U = -G * sum_{i<j} (m_i * m_j) / sqrt(r_ij^2 + epsilon^2)
+    
+    Args:
+        pos: Array of shape (N, dim) - particle positions
+        mass: Array of shape (N,) - particle masses
+        active: Array of shape (N,) - boolean mask for active particles
+        config: UniverseConfig containing G and gravity_softening
+    
+    Returns:
+        float - total gravitational potential energy
+    """
+    # Compute pairwise distances
+    disp = pos[None, :, :] - pos[:, None, :]
+    dist_sq = jnp.sum(disp**2, axis=-1)
+    
+    # Apply softening
+    epsilon = config.gravity_softening
+    softened_dist = jnp.sqrt(dist_sq + epsilon**2)
+    
+    # Only include active particles
+    active_mass = jnp.where(active, mass, 0.0)
+    
+    # Compute pairwise potential energy
+    # U_ij = -G * m_i * m_j / r_ij
+    # Use active_mass for both particles
+    pair_pe = -config.G * active_mass[:, None] * active_mass[None, :] / softened_dist
+    
+    # Sum over upper triangle to avoid double counting (i < j)
+    # Also set diagonal to zero (self-interaction)
+    mask = jnp.triu(jnp.ones_like(pair_pe), k=1)
+    total_pe = jnp.sum(jnp.nan_to_num(pair_pe * mask))
+    
+    return float(total_pe)
+
+
+def total_energy(KE, PE):
+    """
+    Compute total system energy.
+    
+    Args:
+        KE: float - kinetic energy
+        PE: float - potential energy
+    
+    Returns:
+        float - total energy (KE + PE)
+    """
+    return KE + PE
+
+
+def momentum(vel, mass, active):
+    """
+    Compute total momentum vector of the system.
+    
+    P = sum(m_i * v_i) for all active particles
+    
+    Args:
+        vel: Array of shape (N, dim) - particle velocities
+        mass: Array of shape (N,) - particle masses
+        active: Array of shape (N,) - boolean mask for active particles
+    
+    Returns:
+        Array of shape (dim,) - total momentum vector
+    """
+    # Only include active particles
+    active_mass = jnp.where(active, mass, 0.0)
+    
+    # P = sum(m * v)
+    momentum_vec = active_mass[:, None] * vel
+    total_momentum = jnp.sum(momentum_vec, axis=0)
+    
+    # Ensure no NaNs
+    return jnp.nan_to_num(total_momentum)
+
+
+def center_of_mass(pos, mass, active):
+    """
+    Compute center of mass of the system.
+    
+    COM = sum(m_i * pos_i) / sum(m_i) for all active particles
+    
+    Args:
+        pos: Array of shape (N, dim) - particle positions
+        mass: Array of shape (N,) - particle masses
+        active: Array of shape (N,) - boolean mask for active particles
+    
+    Returns:
+        Array of shape (dim,) - center of mass position
+    """
+    # Only include active particles
+    active_mass = jnp.where(active, mass, 0.0)
+    
+    # COM = sum(m * pos) / sum(m)
+    total_mass = jnp.sum(active_mass)
+    
+    # Handle zero mass case
+    if total_mass < 1e-10:
+        return jnp.zeros(pos.shape[1])
+    
+    weighted_pos = active_mass[:, None] * pos
+    com = jnp.sum(weighted_pos, axis=0) / total_mass
+    
+    # Ensure no NaNs
+    return jnp.nan_to_num(com)
+
+
+def adjust_timestep(dt, vel, force, mass, config):
+    """
+    Adjust timestep based on current velocity and acceleration.
+    
+    Prevents simulation blowups by reducing dt when forces/velocities are high.
+    Can also increase dt when the system is stable to speed up simulation.
+    
+    Args:
+        dt: float - current timestep
+        vel: Array of shape (N, dim) - particle velocities
+        force: Array of shape (N, dim) - forces on particles
+        mass: Array of shape (N,) - particle masses
+        config: UniverseConfig containing thresholds and limits
+    
+    Returns:
+        float - new timestep (clamped and safe)
+    """
+    # Safe mass to avoid division by zero
+    mass_safe = jnp.where(mass == 0, 1.0, mass)
+    
+    # Compute max speed and acceleration
+    # Use jnp.max and jnp.linalg.norm
+    speeds = jnp.linalg.norm(vel, axis=1)
+    accels = jnp.linalg.norm(force / mass_safe[:, None], axis=1)
+    
+    max_speed = jnp.max(jnp.nan_to_num(speeds))
+    max_acc = jnp.max(jnp.nan_to_num(accels))
+    
+    # Determine new dt
+    # We use jax.lax.cond or simple python logic since this runs outside JIT in run_sim
+    # But for compatibility with JIT, we should stick to JAX ops if possible
+    # However, run_sim.py calls this in a loop that isn't fully JITed yet
+    # So standard Python control flow is fine for now
+    
+    new_dt = dt
+    
+    if max_speed > config.velocity_threshold:
+        # Too fast - reduce timestep
+        new_dt = dt * 0.5
+    elif max_acc > config.acceleration_threshold:
+        # High acceleration - reduce timestep
+        new_dt = dt * 0.5
+    elif max_speed < (config.velocity_threshold * 0.2):
+        # Very slow - safe to increase timestep
+        new_dt = dt * 1.05
+    
+    # Clamp to allowed range
+    # Range is relative to the ORIGINAL config.dt?
+    # No, the requirement says "dt * config.max_dt_scale" where dt is current?
+    # Actually, usually limits are relative to base dt.
+    # But the requirement says:
+    # new_dt = min(new_dt, dt * config.max_dt_scale)
+    # new_dt = max(new_dt, dt * config.min_dt_scale)
+    # This implies relative to CURRENT dt, which would allow exponential growth/decay.
+    # Let's assume it means relative to the configured base dt (config.dt).
+    # Wait, the requirement says "dt * config.max_dt_scale" where dt is the argument.
+    # If I call this every step, and it returns new_dt, and I pass new_dt next time...
+    # If I use current dt, it can drift indefinitely.
+    # Let's clamp relative to config.dt to be safe and stable.
+    
+    min_dt = config.dt * config.min_dt_scale
+    max_dt = config.dt * config.max_dt_scale
+    
+    new_dt = jnp.clip(new_dt, min_dt, max_dt)
+    
+    # Ensure float return type (not JAX array)
+    return float(new_dt)

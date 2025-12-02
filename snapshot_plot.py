@@ -38,26 +38,26 @@ def build_initial_state(config: UniverseConfig):
     state = spawn_entity(state, jnp.array([ 1.0, 0.0] + [0.0] * (config.dim - 2)), jnp.zeros(config.dim), 1.0, 1)
     return state
 
-
 def run(config: UniverseConfig, state):
     print("Initializing Snapshot Simulation...")
     
-    jit_step = jax.jit(step_simulation)
+    # JIT the physics step for speed
+    # We capture config in a closure to avoid hashing issues with static_argnums
+    @jax.jit
+    def jit_step(state):
+        return step_simulation(state, config)
     
     # Run 50 steps
     STEPS = 50
     print(f"Running {STEPS} steps...")
     for _ in range(STEPS):
-        state = jit_step(state, config)
+        state = jit_step(state)
         
     print("Plotting snapshot...")
     
     # Extract active entities
     active_mask = state.entity_active
     positions = state.entity_pos[active_mask]
-    
-    plt.figure(figsize=(8, 8))
-    plt.scatter(positions[:, 0], positions[:, 1], c='blue', s=100, label='Entities')
     
     plt.xlim(-config.radius, config.radius)
     plt.ylim(-config.radius, config.radius)
