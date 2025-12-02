@@ -65,6 +65,7 @@ class UniverseState:
     entity_pos: jnp.ndarray     # shape (max_entities, dim)
     entity_vel: jnp.ndarray     # shape (max_entities, dim)
     entity_mass: jnp.ndarray    # shape (max_entities,)
+    entity_radius: jnp.ndarray  # shape (max_entities,)
     entity_type: jnp.ndarray    # shape (max_entities,)
 
     # Lattice arrays (always present, used in LATTICE mode)
@@ -97,6 +98,7 @@ def initialize_state(config: UniverseConfig) -> UniverseState:
         entity_pos=jnp.zeros((config.max_entities, config.dim)),
         entity_vel=jnp.zeros((config.max_entities, config.dim)),
         entity_mass=jnp.zeros(config.max_entities),
+        entity_radius=jnp.full(config.max_entities, 0.1),  # Default radius
         entity_type=jnp.zeros(config.max_entities),
 
         # Lattice arrays
