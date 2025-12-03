@@ -18,6 +18,42 @@ from typing import Any
 # JSON exporter import
 from exporters.json_export import export_simulation
 
+############################################################
+# NEW: Single-file JSON exporter for the web viewer
+############################################################
+def export_simulation_single(cfg, state, outfile: str, steps: int = 300):
+    """
+    Run simulation and export all frames into a single JSON file.
+    Viewer-friendly format:
+        {
+            "config": cfg.to_dict(),
+            "frames": [ {pos, vel, mass, active}, ... ]
+        }
+    """
+    from exporters.json_export import get_frame_dict
+    import kernel
+
+    data = {
+        "config": cfg.to_dict() if hasattr(cfg, "to_dict") else {},
+        "frames": []
+    }
+
+    print(f"[EXPORT] Generating {steps} frames for single-file export...")
+    for i in range(steps):
+        # Get frame dict using the existing helper
+        frame_dict = get_frame_dict(state)
+        frame_dict["frame"] = i
+        data["frames"].append(frame_dict)
+        
+        # Step simulation
+        state = kernel.step_simulation(state, cfg)
+
+    import json
+    with open(outfile, "w") as f:
+        json.dump(data, f)
+
+    print(f"[EXPORT] Saved single JSON file: {outfile}")
+
 __version__ = "0.2"
 
 
@@ -532,25 +568,48 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
     # -----------------------------------------------------------------
     # ROUTING: WEB VIEWER (Export)
     # -----------------------------------------------------------------
+    # ============================================================
+    # NEW: Standalone JSON export (single consolidated file)
+    # Triggered whenever --export-json is passed
+    # ============================================================
+    if args.export_json:
+        # Add timestamp to filename to prevent overwriting
+        steps_value = args.steps if args.steps is not None else getattr(cfg, "steps", 300)
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        filename = f"{scenario_name}_{steps_value}_steps_{timestamp}.json"
+        
+        outfile = (
+            pathlib.Path(args.output_dir) / filename
+            if args.output_dir else pathlib.Path("outputs") / filename
+        )
+        outfile.parent.mkdir(parents=True, exist_ok=True)
+
+        export_simulation_single(cfg, state, str(outfile), steps=steps_value)
+
+        print(f"[PSS] JSON export complete: {outfile}")
+        return
+
     if view_mode == "web":
         # Enforce export
-        steps_value = args.steps if args.steps is not None else 100
+        # Enforce export
+        steps_value = args.steps if args.steps is not None else getattr(cfg, "steps", 300)
         timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         export_dir_name = f"{scenario_name}_{steps_value}_steps_{timestamp}"
-        full_export_dir = pathlib.Path("outputs") / "frames" / export_dir_name
+        # Respect --output-dir if provided
+        base_output = pathlib.Path(args.output_dir) if args.output_dir else pathlib.Path("outputs")
+        full_export_dir = base_output / "frames" / export_dir_name
         full_export_dir.mkdir(parents=True, exist_ok=True)
         
         os.environ["COSMOSIM_EXPORT_JSON_DIR"] = str(full_export_dir.resolve())
 
-        export_simulation(cfg, state, steps=steps_value, output_dir=str(full_export_dir))
+        # Only export frames if user did NOT request single JSON export
+        if not args.export_json:
+            print("[WEB] Exporting frames for web viewer...")
+            full_export_dir.mkdir(parents=True, exist_ok=True)
+            export_simulation(cfg, state, steps=steps_value, output_dir=str(full_export_dir))
 
-        print(f"\nExport complete.")
-        print("=" * 60)
-        print("TO VIEW SIMULATION:")
-        print(f"1. Open viewer/test.html in your browser")
-        print(f"2. Click 'Choose Directory'")
-        print(f"3. Select: {full_export_dir}")
-        print("=" * 60)
+        print("[WEB] Launching web viewer...")
+        launch_web_viewer(str(full_export_dir))
         return
 
     # -----------------------------------------------------------------
@@ -583,7 +642,13 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
         if run_kwargs:
             module.run(cfg, state, **run_kwargs)
         else:
-            module.run(cfg, state)
+            run_sig = inspect.signature(module.run)
+            if "steps" in run_sig.parameters:
+                # Use args.steps if provided, else try to get from config, else default
+                steps_val = args.steps if args.steps is not None else getattr(cfg, "steps", 300)
+                module.run(cfg, state, steps=steps_val)
+            else:
+                module.run(cfg, state)
     except Exception as e:
         print("\nError during scenario execution:", file=sys.stderr)
         print(f"   {type(e).__name__}: {e}", file=sys.stderr)

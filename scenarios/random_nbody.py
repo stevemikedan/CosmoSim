@@ -28,9 +28,9 @@ def build_config() -> UniverseConfig:
         radius=radius,
         max_entities=n,
         max_nodes=1,
-        dt=0.1,
+        dt=0.5,  # Smaller timestep for smoother animation
         c=1.0,
-        G=1.0,
+        G=5.0,  # Moderate gravity for visible but controlled motion
     )
 
 
@@ -45,12 +45,12 @@ def build_initial_state(config: UniverseConfig, params: dict | None = None) -> U
         radius = config.radius
         n = config.max_entities
         
-    velocity_scale = 0.3
+    velocity_scale = 0.01  # Very small initial velocities so gravity dominates
 
     key = jax.random.PRNGKey(42)
     k1, k2, k3 = jax.random.split(key, 3)
 
-    positions = jax.random.normal(k1, (n, config.dim)) * (radius * 0.5)
+    positions = jax.random.normal(k1, (n, config.dim)) * (radius * 0.1)  # Tighter cluster
     velocities = jax.random.normal(k2, (n, config.dim)) * velocity_scale
     masses = jax.random.uniform(k3, (n,)) * 1.5 + 0.3
 

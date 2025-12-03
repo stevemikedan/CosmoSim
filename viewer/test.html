@@ -386,11 +386,11 @@
                 }
 
                 const frames = sim.frames.map((frame, idx) => ({
-                    positions: frame.pos,
-                    velocities: frame.vel,
-                    masses: frame.mass || [],
+                    positions: frame.positions,
+                    velocities: frame.velocities,
+                    masses: frame.masses || [],
                     active: frame.active || [],
-                    topology: sim.topology || null,
+                    topology: frame.topology || null,
                     index: idx
                 }));
 
@@ -608,8 +608,8 @@
                 // Auto-camera adjustment
                 if (config.autoCamera) {
                     const frame = player.frames[player.currentFrame];
-                    if (frame && frame.positions) {
-                        updateCameraView(camera, frame.positions, config);
+                    if (frame && frame.positionsitions) {
+                        updateCameraView(camera, frame.positionsitions, config);
                     }
                 }
             }
