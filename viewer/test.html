@@ -179,8 +179,30 @@ text-align: center;
         <button id="btn-reset">Reset / Clear Simulation</button>
     </div>
 
+    <!-- Scenario Configuration Panel -->
+    <section id="scenarioPanel" class="panel" style="
+    position: fixed;
+    top: 70px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    padding: 15px;
+    border-radius: 8px;
+    color: white;
+    width: 300px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 9999;
+">
+        <h3 style="margin-top:0;">Scenario Setup</h3>
 
-    <script type="importmap">
+        <label>Scenario:</label>
+        <select id="scenarioSelector" style="width:100%; margin-bottom:10px;"></select>
+
+        <div id="paramsContainer">
+
+
+
+            <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.152.0/build/three.module.js",
@@ -188,394 +210,408 @@ text-align: center;
             }
         }
     </script>
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { loadFramesByFetch, promptForDirectory } from './frameLoader.js';
-        import { FramePlayer } from './player.js';
-        import { setVisualMode } from './visualModes.js';
-        import { updateCameraView, resetCamera } from './autoCamera.js';
+            <script type="module">
+                import * as THREE from 'three';
+                import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+                import { loadFramesByFetch, promptForDirectory } from './frameLoader.js';
+                import { FramePlayer } from './player.js';
+                import { setVisualMode } from './visualModes.js';
+                import { updateCameraView, resetCamera } from './autoCamera.js';
+                import { ScenarioConfigUI, ScenarioSchemas } from './scenarioConfig.js';
 
-        // Scene setup
-        const canvas = document.getElementById('cosmosim-canvas');
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+                // Scene setup
+                const canvas = document.getElementById('cosmosim-canvas');
+                const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
 
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x000000);
 
-        // Camera
-        const camera = new THREE.PerspectiveCamera(
-            75,
-            window.innerWidth / window.innerHeight,
-            0.1,
-            1000
-        );
-        camera.position.set(3, 3, 6);
-        camera.lookAt(0, 0, 0);
+                // Camera
+                const camera = new THREE.PerspectiveCamera(
+                    75,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    1000
+                );
+                camera.position.set(3, 3, 6);
+                camera.lookAt(0, 0, 0);
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambientLight);
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+                scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(10, 10, 10);
-        scene.add(directionalLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(10, 10, 10);
+                scene.add(directionalLight);
 
-        // Controls
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
+                // Controls
+                const controls = new OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
 
-        // Player instance
-        let player = null;
+                // Player instance
+                let player = null;
 
-        // Auto Camera configuration
-        const config = {
-            autoCamera: true,
-            cameraPadding: 1.4,
-            defaultCamera: {
-                position: [3, 3, 6],
-                target: [0, 0, 0]
-            }
-        };
+                // Auto Camera configuration
+                const config = {
+                    autoCamera: true,
+                    cameraPadding: 1.4,
+                    defaultCamera: {
+                        position: [3, 3, 6],
+                        target: [0, 0, 0]
+                    }
+                };
 
-        // UI Elements
-        const loadingOverlay = document.getElementById('loading');
-        const loadingProgress = document.getElementById('loading-progress');
-        const errorMessage = document.getElementById('error-message');
-        const btnLoadFetch = document.getElementById('btn-load-fetch');
-        const btnLoadDirectory = document.getElementById('btn-load-directory');
-        const btnPlay = document.getElementById('btn-play');
-        const btnRestart = document.getElementById('btn-restart');
-        const btnPrev = document.getElementById('btn-prev');
-        const btnNext = document.getElementById('btn-next');
-        const fpsInput = document.getElementById('fps-input');
-        const visualModeSelect = document.getElementById('visual-mode');
-        const hudFrame = document.getElementById('hud-frame');
-        const hudTotal = document.getElementById('hud-total');
-        const hudTime = document.getElementById('hud-time');
-        const hudEntities = document.getElementById('hud-entities');
+                // UI Elements
+                const loadingOverlay = document.getElementById('loading');
+                const loadingProgress = document.getElementById('loading-progress');
+                const errorMessage = document.getElementById('error-message');
+                const btnLoadFetch = document.getElementById('btn-load-fetch');
+                const btnLoadDirectory = document.getElementById('btn-load-directory');
+                const btnPlay = document.getElementById('btn-play');
+                const btnRestart = document.getElementById('btn-restart');
+                const btnPrev = document.getElementById('btn-prev');
+                const btnNext = document.getElementById('btn-next');
+                const fpsInput = document.getElementById('fps-input');
+                const visualModeSelect = document.getElementById('visual-mode');
+                const hudFrame = document.getElementById('hud-frame');
+                const hudTotal = document.getElementById('hud-total');
+                const hudTime = document.getElementById('hud-time');
+                const hudEntities = document.getElementById('hud-entities');
 
-        // Topology UI
-        const toggleTopology = document.getElementById('toggleTopology');
-        const topologyLabel = document.getElementById('topologyLabel');
+                // Topology UI
+                const toggleTopology = document.getElementById('toggleTopology');
+                const topologyLabel = document.getElementById('topologyLabel');
 
-        // Frame load progress listener
-        window.addEventListener('frameLoadProgress', (e) => {
-            const { current, total } = e.detail;
-            loadingProgress.textContent = `Loading frames: ${current}${total !== '?' ? ` / ${total}` : '...'}`;
-        });
-
-        // Load frames via fetch
-        btnLoadFetch.addEventListener('click', async () => {
-            try {
-                errorMessage.textContent = '';
-                loadingProgress.textContent = 'Loading frames...';
-                btnLoadFetch.disabled = true;
-                btnLoadDirectory.disabled = true;
-
-                const frames = await loadFramesByFetch('../frames/frame_', 1000);
-
-                if (frames.length === 0) {
-                    throw new Error('No frames found in ../frames/');
-                }
-
-                initializePlayer(frames);
-            } catch (error) {
-                errorMessage.textContent = `Error: ${error.message}`;
-                console.error(error);
-                btnLoadFetch.disabled = false;
-                btnLoadDirectory.disabled = false;
-            }
-        });
-
-        // Load frames from directory
-        btnLoadDirectory.addEventListener('click', async () => {
-            try {
-                errorMessage.textContent = '';
-                loadingProgress.textContent = 'Select directory...';
-
-                const frames = await promptForDirectory();
-
-                if (frames.length === 0) {
-                    throw new Error('No JSON frames found in selected directory');
-                }
-
-                initializePlayer(frames);
-            } catch (error) {
-                errorMessage.textContent = `Error: ${error.message}`;
-                console.error(error);
-            }
-        });
-        // Load a single JSON simulation file generated by run_sim.py
-        document.getElementById('btn-load-simfile').addEventListener('click', async () => {
-            try {
-                errorMessage.textContent = '';
-                loadingProgress.textContent = 'Select a .json simulation file...';
-
-                const [fileHandle] = await window.showOpenFilePicker({
-                    types: [
-                        {
-                            description: 'CosmoSim JSON Simulation',
-                            accept: { 'application/json': ['.json'] }
-                        }
-                    ]
+                // Frame load progress listener
+                window.addEventListener('frameLoadProgress', (e) => {
+                    const { current, total } = e.detail;
+                    loadingProgress.textContent = `Loading frames: ${current}${total !== '?' ? ` / ${total}` : '...'}`;
                 });
 
-                const file = await fileHandle.getFile();
-                const text = await file.text();
-                const sim = JSON.parse(text);
+                // Load frames via fetch
+                btnLoadFetch.addEventListener('click', async () => {
+                    try {
+                        errorMessage.textContent = '';
+                        loadingProgress.textContent = 'Loading frames...';
+                        btnLoadFetch.disabled = true;
+                        btnLoadDirectory.disabled = true;
 
-                if (!sim.frames || !Array.isArray(sim.frames)) {
-                    throw new Error('Invalid simulation file — missing frames[]');
+                        const frames = await loadFramesByFetch('../frames/frame_', 1000);
+
+                        if (frames.length === 0) {
+                            throw new Error('No frames found in ../frames/');
+                        }
+
+                        initializePlayer(frames);
+                    } catch (error) {
+                        errorMessage.textContent = `Error: ${error.message}`;
+                        console.error(error);
+                        btnLoadFetch.disabled = false;
+                        btnLoadDirectory.disabled = false;
+                    }
+                });
+
+                // Load frames from directory
+                btnLoadDirectory.addEventListener('click', async () => {
+                    try {
+                        errorMessage.textContent = '';
+                        loadingProgress.textContent = 'Select directory...';
+
+                        const frames = await promptForDirectory();
+
+                        if (frames.length === 0) {
+                            throw new Error('No JSON frames found in selected directory');
+                        }
+
+                        initializePlayer(frames);
+                    } catch (error) {
+                        errorMessage.textContent = `Error: ${error.message}`;
+                        console.error(error);
+                    }
+                });
+                // Load a single JSON simulation file generated by run_sim.py
+                document.getElementById('btn-load-simfile').addEventListener('click', async () => {
+                    try {
+                        errorMessage.textContent = '';
+                        loadingProgress.textContent = 'Select a .json simulation file...';
+
+                        const [fileHandle] = await window.showOpenFilePicker({
+                            types: [
+                                {
+                                    description: 'CosmoSim JSON Simulation',
+                                    accept: { 'application/json': ['.json'] }
+                                }
+                            ]
+                        });
+
+                        const file = await fileHandle.getFile();
+                        const text = await file.text();
+                        const sim = JSON.parse(text);
+
+                        if (!sim.frames || !Array.isArray(sim.frames)) {
+                            throw new Error('Invalid simulation file — missing frames[]');
+                        }
+
+                        const frames = sim.frames.map((frame, idx) => ({
+                            positions: frame.pos,
+                            velocities: frame.vel,
+                            masses: frame.mass || [],
+                            active: frame.active || [],
+                            topology: sim.topology || null,
+                            index: idx
+                        }));
+
+                        initializePlayer(frames);
+
+                    } catch (err) {
+                        errorMessage.textContent = `Error loading simulation: ${err.message}`;
+                        console.error(err);
+                    }
+                });
+
+                // --- Persistent Control Panel Buttons ---
+
+                document.getElementById("btn-load-json").addEventListener("click", () => {
+                    document.getElementById("btn-load-simfile").click();
+                });
+
+                document.getElementById("btn-load-dir").addEventListener("click", () => {
+                    document.getElementById("btn-load-directory").click();
+                });
+
+                document.getElementById("btn-reset").addEventListener("click", () => {
+                    console.log("[Viewer] Resetting simulation...");
+
+                    // 1. Stop playback if running
+                    if (player) {
+                        player.stop();
+                    }
+
+                    // 2. Remove rendered particle system if it exists
+                    if (player && player.particleSystem) {
+                        scene.remove(player.particleSystem);
+                        player.particleSystem.geometry.dispose();
+                        player.particleSystem.material.dispose();
+                    }
+
+                    // 3. Remove topology overlay group if it exists
+                    if (player && player.topologyOverlay && player.topologyOverlay.group) {
+                        scene.remove(player.topologyOverlay.group);
+                    }
+
+                    // 4. Kill the player instance entirely
+                    player = null;
+
+                    // 5. Reset HUD
+                    hudFrame.textContent = "0";
+                    hudTotal.textContent = "0";
+                    hudTime.textContent = "0.000";
+                    hudEntities.textContent = "0";
+
+                    // 6. Reset loading overlay
+                    errorMessage.textContent = "";
+                    loadingProgress.textContent = "Select a file to load...";
+
+                    // 7. Bring back the loading screen so the user can load again
+                    loadingOverlay.classList.remove("hidden");
+
+                    console.log("[Viewer] Simulation state cleared.");
+                });
+
+
+
+                // Initialize player with loaded frames
+                function initializePlayer(frames) {
+                    player = new FramePlayer(frames, scene);
+                    player.initializeEntities();
+
+                    // Wire up topology UI
+                    player.topologyOverlay.onModeChange = (mode) => {
+                        topologyLabel.textContent = `(${mode})`;
+                    };
+
+                    // Initial state
+                    const initialTopo = frames[0]?.topology;
+                    if (initialTopo) {
+                        player.topologyOverlay.update(initialTopo);
+                    } else {
+                        topologyLabel.textContent = '(none)';
+                    }
+
+                    player.updateFrame();
+
+                    loadingOverlay.classList.add('hidden');
+                    updateHUD();
                 }
 
-                const frames = sim.frames.map((frame, idx) => ({
-                    positions: frame.pos,
-                    velocities: frame.vel,
-                    masses: frame.mass || [],
-                    active: frame.active || [],
-                    topology: sim.topology || null,
-                    index: idx
-                }));
-
-                initializePlayer(frames);
-
-            } catch (err) {
-                errorMessage.textContent = `Error loading simulation: ${err.message}`;
-                console.error(err);
-            }
-        });
-
-        // --- Persistent Control Panel Buttons ---
-
-        document.getElementById("btn-load-json").addEventListener("click", () => {
-            document.getElementById("btn-load-simfile").click();
-        });
-
-        document.getElementById("btn-load-dir").addEventListener("click", () => {
-            document.getElementById("btn-load-directory").click();
-        });
-
-        document.getElementById("btn-reset").addEventListener("click", () => {
-            console.log("[Viewer] Resetting simulation...");
-
-            // 1. Stop playback if running
-            if (player) {
-                player.stop();
-            }
-
-            // 2. Remove rendered particle system if it exists
-            if (player && player.particleSystem) {
-                scene.remove(player.particleSystem);
-                player.particleSystem.geometry.dispose();
-                player.particleSystem.material.dispose();
-            }
-
-            // 3. Remove topology overlay group if it exists
-            if (player && player.topologyOverlay && player.topologyOverlay.group) {
-                scene.remove(player.topologyOverlay.group);
-            }
-
-            // 4. Kill the player instance entirely
-            player = null;
-
-            // 5. Reset HUD
-            hudFrame.textContent = "0";
-            hudTotal.textContent = "0";
-            hudTime.textContent = "0.000";
-            hudEntities.textContent = "0";
-
-            // 6. Reset loading overlay
-            errorMessage.textContent = "";
-            loadingProgress.textContent = "Select a file to load...";
-
-            // 7. Bring back the loading screen so the user can load again
-            loadingOverlay.classList.remove("hidden");
-
-            console.log("[Viewer] Simulation state cleared.");
-        });
-
-
-
-        // Initialize player with loaded frames
-        function initializePlayer(frames) {
-            player = new FramePlayer(frames, scene);
-            player.initializeEntities();
-
-            // Wire up topology UI
-            player.topologyOverlay.onModeChange = (mode) => {
-                topologyLabel.textContent = `(${mode})`;
-            };
-
-            // Initial state
-            const initialTopo = frames[0]?.topology;
-            if (initialTopo) {
-                player.topologyOverlay.update(initialTopo);
-            } else {
-                topologyLabel.textContent = '(none)';
-            }
-
-            player.updateFrame();
-
-            loadingOverlay.classList.add('hidden');
-            updateHUD();
-        }
-
-        // Button handlers
-        btnPlay.addEventListener('click', () => {
-            if (!player) return;
-            player.toggle();
-            updatePlayButton();
-        });
-
-        btnRestart.addEventListener('click', () => {
-            if (!player) return;
-            player.restart();
-            updatePlayButton();
-            updateHUD();
-        });
-
-        btnPrev.addEventListener('click', () => {
-            if (!player) return;
-            player.prev();
-            updateHUD();
-        });
-
-        btnNext.addEventListener('click', () => {
-            if (!player) return;
-            player.next();
-            updateHUD();
-        });
-
-        fpsInput.addEventListener('input', () => {
-            if (!player) return;
-            player.setFPS(parseInt(fpsInput.value) || 30);
-        });
-
-        visualModeSelect.addEventListener('change', (e) => {
-            setVisualMode(e.target.value);
-            if (player) player.refreshVisuals();
-            // Remove focus so keyboard shortcuts still work
-            visualModeSelect.blur();
-        });
-
-        toggleTopology.addEventListener('change', (e) => {
-            if (player) {
-                player.topologyOverlay.setVisible(e.target.checked);
-            }
-        });
-
-        // Auto Camera toggle
-        document.getElementById('toggleAutoCamera').addEventListener('change', (e) => {
-            config.autoCamera = e.target.checked;
-            console.log('Auto Camera:', config.autoCamera ? 'enabled' : 'disabled');
-        });
-
-        // Reset Camera button
-        document.getElementById('btn-reset-camera').addEventListener('click', () => {
-            resetCamera(camera, controls, config);
-        });
-
-        // Keyboard shortcuts
-        window.addEventListener('keydown', (e) => {
-            if (!player) return;
-
-            // Visual Mode shortcuts (1-5)
-            if (['1', '2', '3', '4', '5'].includes(e.key)) {
-                const modes = {
-                    '1': 'mass-color',
-                    '2': 'type-color',
-                    '3': 'velocity-color',
-                    '4': 'active-mask',
-                    '5': 'uniform'
-                };
-                const mode = modes[e.key];
-                setVisualMode(mode);
-                visualModeSelect.value = mode;
-                player.refreshVisuals();
-                return;
-            }
-
-            switch (e.code) {
-                case 'Space':
-                    e.preventDefault();
+                // Button handlers
+                btnPlay.addEventListener('click', () => {
+                    if (!player) return;
                     player.toggle();
                     updatePlayButton();
-                    break;
-                case 'ArrowRight':
-                    e.preventDefault();
-                    player.next();
-                    updateHUD();
-                    break;
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    player.prev();
-                    updateHUD();
-                    break;
-                case 'KeyR':
-                    e.preventDefault();
+                });
+
+                btnRestart.addEventListener('click', () => {
+                    if (!player) return;
                     player.restart();
                     updatePlayButton();
                     updateHUD();
-                    break;
-                case 'KeyC':
-                    e.preventDefault();
+                });
+
+                btnPrev.addEventListener('click', () => {
+                    if (!player) return;
+                    player.prev();
+                    updateHUD();
+                });
+
+                btnNext.addEventListener('click', () => {
+                    if (!player) return;
+                    player.next();
+                    updateHUD();
+                });
+
+                fpsInput.addEventListener('input', () => {
+                    if (!player) return;
+                    player.setFPS(parseInt(fpsInput.value) || 30);
+                });
+
+                visualModeSelect.addEventListener('change', (e) => {
+                    setVisualMode(e.target.value);
+                    if (player) player.refreshVisuals();
+                    // Remove focus so keyboard shortcuts still work
+                    visualModeSelect.blur();
+                });
+
+                toggleTopology.addEventListener('change', (e) => {
+                    if (player) {
+                        player.topologyOverlay.setVisible(e.target.checked);
+                    }
+                });
+
+                // Auto Camera toggle
+                document.getElementById('toggleAutoCamera').addEventListener('change', (e) => {
+                    config.autoCamera = e.target.checked;
+                    console.log('Auto Camera:', config.autoCamera ? 'enabled' : 'disabled');
+                });
+
+                // Reset Camera button
+                document.getElementById('btn-reset-camera').addEventListener('click', () => {
                     resetCamera(camera, controls, config);
-                    break;
-            }
-        });
+                });
 
-        // Update play button text
-        function updatePlayButton() {
-            if (!player) return;
-            btnPlay.textContent = player.isPlaying ? '⏸ Pause' : '▶ Play';
-        }
+                // Keyboard shortcuts
+                window.addEventListener('keydown', (e) => {
+                    if (!player) return;
 
-        // Update HUD
-        function updateHUD() {
-            if (!player) return;
-            const info = player.getFrameInfo();
-            hudFrame.textContent = info.frame;
-            hudTotal.textContent = info.total;
-            hudTime.textContent = info.time.toFixed(3);
-            hudEntities.textContent = info.activeCount;
-        }
+                    // Visual Mode shortcuts (1-5)
+                    if (['1', '2', '3', '4', '5'].includes(e.key)) {
+                        const modes = {
+                            '1': 'mass-color',
+                            '2': 'type-color',
+                            '3': 'velocity-color',
+                            '4': 'active-mask',
+                            '5': 'uniform'
+                        };
+                        const mode = modes[e.key];
+                        setVisualMode(mode);
+                        visualModeSelect.value = mode;
+                        player.refreshVisuals();
+                        return;
+                    }
 
-        // Animation loop
-        function animate(currentTime) {
-            requestAnimationFrame(animate);
+                    switch (e.code) {
+                        case 'Space':
+                            e.preventDefault();
+                            player.toggle();
+                            updatePlayButton();
+                            break;
+                        case 'ArrowRight':
+                            e.preventDefault();
+                            player.next();
+                            updateHUD();
+                            break;
+                        case 'ArrowLeft':
+                            e.preventDefault();
+                            player.prev();
+                            updateHUD();
+                            break;
+                        case 'KeyR':
+                            e.preventDefault();
+                            player.restart();
+                            updatePlayButton();
+                            updateHUD();
+                            break;
+                        case 'KeyC':
+                            e.preventDefault();
+                            resetCamera(camera, controls, config);
+                            break;
+                    }
+                });
 
-            if (player) {
-                player.update(currentTime);
-                updateHUD();
+                // Update play button text
+                function updatePlayButton() {
+                    if (!player) return;
+                    btnPlay.textContent = player.isPlaying ? '⏸ Pause' : '▶ Play';
+                }
 
-                // Auto-camera adjustment
-                if (config.autoCamera) {
-                    const frame = player.frames[player.currentFrame];
-                    if (frame && frame.positions) {
-                        updateCameraView(camera, frame.positions, config);
+                // Update HUD
+                function updateHUD() {
+                    if (!player) return;
+                    const info = player.getFrameInfo();
+                    hudFrame.textContent = info.frame;
+                    hudTotal.textContent = info.total;
+                    hudTime.textContent = info.time.toFixed(3);
+                    hudEntities.textContent = info.activeCount;
+                }
+
+                // Animation loop
+                function animate(currentTime) {
+                    requestAnimationFrame(animate);
+
+                    if (player) {
+                        player.update(currentTime);
+                        updateHUD();
+
+                        // Auto-camera adjustment
+                        if (config.autoCamera) {
+                            const frame = player.frames[player.currentFrame];
+                            if (frame && frame.positions) {
+                                updateCameraView(camera, frame.positions, config);
+                            }
+                        }
+                    }
+
+                    controls.update();
+                    renderer.render(scene, camera);
+                }
+
+                // Window resize
+                function onWindowResize() {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                }
+                window.addEventListener('resize', onWindowResize);
+
+                // Start animation loop
+                animate();
+                // E1.4: Initialize Scenario Configuration Panel
+                if (document.getElementById('scenarioPanel')) {
+                    try {
+                        new ScenarioConfigUI(
+                            document.getElementById('scenarioPanel'),
+                            ScenarioSchemas
+                        );
+                        console.log('[E1.4] Scenario Config Panel initialized');
+                    } catch (error) {
+                        console.error('[E1.4] Failed to initialize Scenario Config Panel:', error);
                     }
                 }
-            }
 
-            controls.update();
-            renderer.render(scene, camera);
-        }
-
-        // Window resize
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-        window.addEventListener('resize', onWindowResize);
-
-        // Start animation loop
-        animate();
-    </script>
+            </script>
 </body>
 
 </html>

@@ -1,0 +1,76 @@
+<!-- E1.4 Scenario Configuration Panel -->
+<!-- Insert this HTML block after the control-panel div (around line 180) in viewer/test.html -->
+
+<div id="scenarioPanel" style="
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 15px;
+    border-radius: 8px;
+    color: white;
+    width: 300px;
+    max-height: 80vh;
+    overflow-y: auto;
+    border: 1px solid #444;
+">
+    <h3
+        style="margin-top: 0; margin-bottom: 15px; font-size: 16px; border-bottom: 1px solid #555; padding-bottom: 10px;">
+        Scenario Setup
+    </h3>
+
+    <label style="display: block; margin-bottom: 5px; font-size: 13px;">Scenario:</label>
+    <select id="scenarioSelector" style="
+        width: 100%;
+        margin-bottom: 15px;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #555;
+        background: #222;
+        color: #fff;
+    "></select>
+
+    <div id="paramsContainer" style="margin-bottom: 15px;"></div>
+
+    <button id="runScenarioBtn" style="
+        width: 100%;
+        padding: 10px;
+        background: #2196F3;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        margin-bottom: 10px;
+    ">
+        Generate Simulation Command
+    </button>
+
+    <div id="scenarioCommandContainer" style="display: none;">
+        <h4 style="margin-top: 0; margin-bottom: 8px; font-size: 13px;">Command:</h4>
+        <textarea id="scenarioCommandOutput" rows="4" style="
+            width: 100%;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #1a1a1a;
+            color: #0f0;
+            resize: none;
+            margin-bottom: 8px;
+        "></textarea>
+        <button id="copyScenarioCommandBtn" style="
+            width: 100%;
+            padding: 8px;
+            background: #4CAF50;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+        ">
+            Copy to Clipboard
+        </button>
+    </div>
+</div>
