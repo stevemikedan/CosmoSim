@@ -69,6 +69,118 @@ def load_scenarios() -> dict[str, str]:
     return scenarios
 
 
+# =====================================================================
+# PSS (Parameterized Scenario System) Support
+# =====================================================================
+
+def parse_param_string(param_str: str | None) -> dict:
+    """
+    Parse comma-separated key=value pairs into a dictionary.
+    
+    Example: "N=500,radius=20.5,active=true" -> {"N": "500", "radius": "20.5", "active": "true"}
+    
+    Returns:
+        dict with string values (type conversion happens in merge_params)
+    """
+    if not param_str:
+        return {}
+    
+    params = {}
+    for pair in param_str.split(','):
+        pair = pair.strip()
+        if '=' not in pair:
+            continue
+        key, value = pair.split('=', 1)
+        params[key.strip()] = value.strip()
+    
+    return params
+
+
+def load_scenario_schema(module: Any) -> dict | None:
+    """
+    Extract SCENARIO_PARAMS schema from module if present.
+    
+    Returns:
+        dict of parameter specs or None if not defined
+    """
+    if not hasattr(module, 'SCENARIO_PARAMS'):
+        return None
+    
+    schema = module.SCENARIO_PARAMS
+    if not isinstance(schema, dict):
+        return None
+    
+    # Validate schema format
+    for key, spec in schema.items():
+        if not isinstance(spec, dict):
+            print(f"[PSS] Warning: Invalid schema for param '{key}' (not a dict)")
+            continue
+        if 'type' not in spec or 'default' not in spec:
+            print(f"[PSS] Warning: Invalid schema for param '{key}' (missing 'type' or 'default')")
+    
+    return schema
+
+
+def merge_params(schema: dict | None, cli_params: dict) -> dict:
+    """
+    Merge CLI parameters with schema defaults.
+    
+    Args:
+        schema: Parameter schema from SCENARIO_PARAMS
+        cli_params: Parsed CLI parameters (strings)
+        
+    Returns:
+        dict with typed, validated, and bounded parameters
+    """
+    if not schema:
+        if cli_params:
+            print("[PSS] Warning: CLI params provided but scenario has no schema")
+        return {}
+    
+    merged = {}
+    
+    # Start with defaults from schema
+    for key, spec in schema.items():
+        merged[key] = spec['default']
+    
+    # Apply CLI overrides
+    for key, value_str in cli_params.items():
+        if key not in schema:
+            print(f"[PSS] Warning: Unknown parameter '{key}' ignored")
+            continue
+        
+        spec = schema[key]
+        param_type = spec.get('type', 'str')
+        
+        # Type conversion
+        try:
+            if param_type == 'int':
+                value = int(value_str)
+            elif param_type == 'float':
+                value = float(value_str)
+            elif param_type == 'bool':
+                value = value_str.lower() in ('true', '1', 'yes', 'y')
+            else:  # str
+                value = value_str
+            
+            # Bounds checking for numeric types
+            if param_type in ('int', 'float'):
+                if 'min' in spec and value < spec['min']:
+                    print(f"[PSS] Warning: {key}={value} below min={spec['min']}, clamping")
+                    value = spec['min']
+                if 'max' in spec and value > spec['max']:
+                    print(f"[PSS] Warning: {key}={value} above max={spec['max']}, clamping")
+                    value = spec['max']
+            
+            merged[key] = value
+            
+        except (ValueError, AttributeError) as e:
+            print(f"[PSS] Warning: Invalid type for parameter '{key}'; using default")
+            merged[key] = spec['default']
+    
+    return merged
+
+
 def validate_interface(module: Any) -> bool:
     """
     Validate that a module conforms to the CosmoSim interface.
@@ -144,9 +256,28 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
         print(cfg)
         print()
 
+    # Step 2.5: PSS - Parameterized Scenario System
+    schema = load_scenario_schema(module)
+    cli_params = parse_param_string(getattr(args, 'params', None))
+    merged_params = merge_params(schema, cli_params)
+    
+    # PSS Logging
+    if schema:
+        print(f"[PSS] Loaded schema with {len(schema)} parameters")
+    if cli_params:
+        print(f"[PSS] Applied CLI overrides: {cli_params}")
+    if merged_params:
+        print(f"[PSS] Final merged parameters: {merged_params}")
+
     # Step 3: Build initial state
     print("Initializing universe state...")
-    state = module.build_initial_state(cfg)
+    
+    # Check if scenario supports params parameter
+    sig = inspect.signature(module.build_initial_state)
+    if 'params' in sig.parameters:
+        state = module.build_initial_state(cfg, merged_params if merged_params else None)
+    else:
+        state = module.build_initial_state(cfg)
 
     # Determine View Mode
     view_mode = args.view
@@ -253,6 +384,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dt", type=float, help="Time step size")
     parser.add_argument("--entities", "-N", type=int, help="Number of entities")
     parser.add_argument("--seed", type=int, help="Random seed")
+    
+    # Scenario Parameters (PSS)
+    parser.add_argument(
+        "--params",
+        help="Scenario parameters as comma-separated key=value pairs (e.g., N=500,radius=20)"
+    )
     
     # Physics Parameters
     parser.add_argument("--topology", help="Topology type (flat, torus, etc)")

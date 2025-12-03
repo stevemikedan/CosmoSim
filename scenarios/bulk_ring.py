@@ -14,6 +14,39 @@ from entities import allocate_entities
 from kernel import step_simulation
 
 
+# PSS - Parameterized Scenario System Schema
+SCENARIO_PARAMS = {
+    "N": {
+        "type": "int",
+        "default": 64,
+        "min": 1,
+        "max": 128,
+        "description": "Number of entities in the ring"
+    },
+    "radius": {
+        "type": "float",
+        "default": 8.0,
+        "min": 1.0,
+        "max": 50.0,
+        "description": "Orbital radius of the ring"
+    },
+    "speed": {
+        "type": "float",
+        "default": 0.8,
+        "min": 0.1,
+        "max": 5.0,
+        "description": "Tangential velocity"
+    },
+    "mass": {
+        "type": "float",
+        "default": 1.0,
+        "min": 0.1,
+        "max": 10.0,
+        "description": "Mass per entity"
+    },
+}
+
+
 def build_config() -> UniverseConfig:
     """
     Create configuration for a ring of orbiting bodies.
@@ -32,22 +65,30 @@ def build_config() -> UniverseConfig:
     )
 
 
-def build_initial_state(cfg: UniverseConfig) -> UniverseState:
+def build_initial_state(cfg: UniverseConfig, params: dict | None = None) -> UniverseState:
     """
     Build initial state using bulk allocation.
     
     Creates a ring of bodies with tangential velocities using allocate_entities()
     for efficient direct array initialization.
+    
+    Args:
+        cfg: Universe configuration
+        params: Optional scenario parameters (from PSS)
     """
+    # Use params if provided, otherwise use defaults from schema
+    if params is None:
+        params = {k: v['default'] for k, v in SCENARIO_PARAMS.items()}
+    
     # Allocate entity arrays
     pos, vel, mass, type_id, active = allocate_entities(cfg)
     
-    # Number of active bodies (max 64 for visual clarity)
-    N = min(64, cfg.max_entities)
+    # Number of active bodies
+    N = min(params.get('N', 64), cfg.max_entities)
     
     # Generate ring positions
     angles = jnp.linspace(0.0, 2.0 * jnp.pi, N, endpoint=False)
-    ring_radius = 8.0  # orbital radius
+    ring_radius = params.get('radius', 8.0)
     
     pos_xy = jnp.stack(
         [ring_radius * jnp.cos(angles), ring_radius * jnp.sin(angles)],
@@ -55,7 +96,7 @@ def build_initial_state(cfg: UniverseConfig) -> UniverseState:
     )
     
     # Generate tangential velocities
-    speed = 0.8
+    speed = params.get('speed', 0.8)
     vel_xy = jnp.stack(
         [-speed * jnp.sin(angles), speed * jnp.cos(angles)],
         axis=1,
@@ -64,7 +105,8 @@ def build_initial_state(cfg: UniverseConfig) -> UniverseState:
     # Fill arrays using bulk updates
     pos = pos.at[:N].set(pos_xy)
     vel = vel.at[:N].set(vel_xy)
-    mass = mass.at[:N].set(jnp.ones(N) * 1.0)
+    entity_mass = params.get('mass', 1.0)
+    mass = mass.at[:N].set(jnp.ones(N) * entity_mass)
     type_id = type_id.at[:N].set(1)
     active = active.at[:N].set(1)
     
