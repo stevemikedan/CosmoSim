@@ -30,11 +30,57 @@ def compute_gravity_forces(pos, mass, active, config):
     N = pos.shape[0]
     dim = pos.shape[1]
     
-    # Check if neighbor engine is enabled (PS2.2)
-    use_neighbor_engine = getattr(config, 'enable_neighbor_engine', True)
+    # PS2.3: Check if spatial partitioning is enabled
+    use_partition = getattr(config, 'enable_spatial_partition', True)
+    
+    # PS2.2: Check if neighbor engine is enabled (currently disabled by default)
+    use_neighbor_engine = getattr(config, 'enable_neighbor_engine', False)
+    
+    if use_partition and not use_neighbor_engine:
+        # PS2.3: Use spatial partitioning for efficient neighbor lookup
+        try:
+            from environment.topology_neighbors import (
+                start_spatial_partition, 
+                generate_partitioned_pairs
+            )
+            
+            # Build spatial partition
+            partition = start_spatial_partition(pos, active, config)
+            
+            if partition is None:
+                # Fallback to vectorized if partition fails
+                print("[PS2.3 WARNING] Spatial partition failed, using vectorized fallback")
+                use_partition = False
+            else:
+                # Initialize force array
+                import numpy as np
+                forces = np.zeros((N, dim))
+                
+                # Epsilon for softening
+                epsilon = config.gravity_softening
+                
+                # Generate forces for partitioned neighbor pairs
+                for i, j, offset in generate_partitioned_pairs(pos, active, partition, config):
+                    # Compute distance
+                    r_sq = np.sum(offset ** 2)
+                    softened_dist_cubed = (r_sq + epsilon**2) ** 1.5
+                    
+                    # Force magnitude: F = G * m_i * m_j / r³_soft
+                    force_mag = config.G * mass[i] * mass[j] / softened_dist_cubed
+                    
+                    # Force vector from i to j
+                    force_vec = force_mag * offset
+                    
+                    # Accumulate force on particle i
+                    forces[i] += force_vec
+                
+                return jnp.array(forces)
+        except Exception as e:
+            print(f"[PS2.3 WARNING] Partition error: {e}, using vectorized fallback")
+            use_partition = False
     
     if use_neighbor_engine:
-        # PS2.2: Use centralized neighbor engine
+        # PS2.2: Use centralized neighbor engine (non-partitioned)
         from environment.topology_neighbors import generate_neighbor_pairs
         
         # Initialize force array
@@ -57,6 +103,8 @@ def compute_gravity_forces(pos, mass, active, config):
             
             # Accumulate force on particle i
             forces = forces.at[i].add(force_vec)
+
+
         
         return forces
     

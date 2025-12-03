@@ -1,10 +1,10 @@
 """
-Topology-Aware Neighbor Query System (PS2.2)
+Topology-Aware Neighbor Query System (PS2.2 + PS2.3)
 
 This module provides a centralized neighbor engine that:
 1. Computes topology-correct offset vectors between particles
 2. Generates neighbor pairs for force calculations
-3. Prepares scaffolding for PS2.3 spatial partitioning
+3. Implements spatial partitioning for efficient neighbor lookup
 
 TOPOLOGIES SUPPORTED:
 - FLAT (0): Standard Euclidean geometry
@@ -154,29 +154,141 @@ def generate_neighbor_pairs(positions, active_mask, config):
 
 
 # =============================================================================
-# PS2.3 PLACEHOLDER FUNCTIONS (DO NOT IMPLEMENT YET)
+# PS2.3 SPATIAL PARTITIONING FUNCTIONS
 # =============================================================================
 
-def start_spatial_partition(config):
+def start_spatial_partition(positions, active_mask, config):
     """
-    PS2.3 placeholder. Do not implement yet.
+    Initialize spatial partitioning grid for neighbor queries.
     
-    Future: Initialize spatial partitioning grid/octree for neighbor queries.
+    Args:
+        positions: Array of shape (N, dim) - particle positions
+        active_mask: Array of shape (N,) - boolean mask for active particles
+        config: UniverseConfig instance
+        
+    Returns:
+        Partition structure or None on failure
     """
-    return None
+    from environment.spatial_partition import start_spatial_partition as build_partition
+    return build_partition(positions, active_mask, config)
 
 
 def get_partition_neighbors(partition, pos, active, config):
     """
-    PS2.3 placeholder. Do not implement yet.
+    Get neighbors using spatial partitioning for O(N log N) or O(N) performance.
     
-    Future: Get neighbors using spatial partitioning for O(N log N) or O(N) performance.
+    This is now implemented via generate_partitioned_pairs().
     """
-    return None
+    return generate_partitioned_pairs(pos, active, partition, config)
+
+
 def spatial_partition_debug_info(partition):
     """
-    PS2.3 placeholder. Do not implement yet.
+    Return diagnostic information about spatial partition state.
     
-    Future: Return diagnostic information about spatial partition state.
+    Args:
+        partition: Partition structure from start_spatial_partition()
+        
+    Returns:
+        dict with diagnostic info
     """
-    return {}
+    if partition is None:
+        return {'status': 'failed', 'num_cells': 0, 'num_particles': 0}
+    
+    grid = partition.get('grid', {})
+    num_cells = len(grid)
+    num_particles = sum(len(indices) for indices in grid.values())
+    cell_size = partition.get('cell_size', 0.0)
+    
+    return {
+        'status': 'active',
+        'num_cells': num_cells,
+        'num_particles': num_particles,
+        'cell_size': cell_size,
+        'avg_particles_per_cell': num_particles / num_cells if num_cells > 0 else 0
+    }
+
+
+def generate_partitioned_pairs(positions, active_mask, partition, config):
+    """
+    Generate neighbor pairs using spatial partitioning.
+    
+    Uses PS2.2's compute_topology_offset() but limits search space to
+    neighboring cells only, reducing complexity from O(N²) to O(N).
+    
+    Args:
+        positions: Array of shape (N, dim) - particle positions
+        active_mask: Array of shape (N,) -boolean mask for active particles
+        partition: Partition structure from start_spatial_partition()
+        config: UniverseConfig containing topology information
+        
+    Yields:
+        Tuples of (i, j, offset_ij) where:
+        - i: Index of first particle
+        - j: Index of second particle
+        - offset_ij: Topology-aware offset vector from i to j
+    
+    Notes:
+        - Skips pairs where i == j
+        - Returns symmetric pairs: both (i,j) and (j,i)
+        - Only returns pairs where both particles are active
+        - Deterministic iteration order (sorted cells, sorted indices)
+    """
+    if partition is None:
+        # Fallback to non-partitioned pairs
+        print("[PS2.3 WARNING] Partition is None, falling back to non-partitioned pairs")
+        yield from generate_neighbor_pairs(positions, active_mask, config)
+        return
+  
+    grid = partition['grid']
+    cell_size = partition['cell_size']
+    num_cells = partition.get('num_cells')
+    topology_type = partition.get('topology_type', 0)
+    
+    # Import neighbor cell lookup
+    from environment.spatial_partition import get_neighbor_cells, compute_cell_index
+    
+    # Convert to numpy for indexing
+    import numpy as np
+    positions_np = np.array(positions)
+    
+    # Track pairs we've already yielded to avoid duplicates
+    yielded_pairs = set()
+    
+    # Iterate over all cells in sorted order (determinism)
+    for cell_idx in sorted(grid.keys()):
+        particles_in_cell = grid[cell_idx]
+        
+        # Get neighboring cells
+        neighbor_cells = get_neighbor_cells(cell_idx, topology_type, num_cells)
+        
+        # For each particle in this cell
+        for i in particles_in_cell:
+            if not active_mask[i]:
+                continue
+            
+            # Check all particles in neighboring cells
+            for neighbor_cell in neighbor_cells:
+                if neighbor_cell not in grid:
+                    continue
+                
+                for j in grid[neighbor_cell]:
+                    if not active_mask[j]:
+                        continue
+                    
+                    # Skip self-pairs
+                    if i == j:
+                        continue
+                    
+                    # Check if we've already yielded this pair
+                    # Note: We want BOTH (i,j) and (j,i) for symmetric forces
+                    pair_key = (i, j)
+                    if pair_key in yielded_pairs:
+                        continue
+                    
+                    yielded_pairs.add(pair_key)
+                    
+                    # Compute topology-aware offset
+                    offset = compute_topology_offset(positions_np[i], positions_np[j], config)
+                    
+                    yield i, j, offset

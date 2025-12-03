@@ -36,6 +36,9 @@ class UniverseConfig:
     acceleration_threshold: float = 10.0  # Acceleration threshold for reducing dt
     # PS2.2: Neighbor engine toggle (currently disabled due to JIT incompatibility)
     enable_neighbor_engine: bool = False  # Use centralized topology-aware neighbor engine
+    # PS2.3: Spatial partitioning
+    enable_spatial_partition: bool = True  # Use spatial hash grid for O(N) neighbor lookup
+    spatial_cell_size: float | None = None  # Cell size for spatial hash (None = auto: radius/10)
     # Expansion parameters
     expansion_type: str = "none"  # "none", "linear", "anisotropic", "scale_factor"
     expansion_rate: float = 0.0   # Hubble parameter H (for linear expansion)
