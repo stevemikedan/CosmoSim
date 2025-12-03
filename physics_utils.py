@@ -27,67 +27,102 @@ def compute_gravity_forces(pos, mass, active, config):
     Returns:
         Array of shape (N, dim) - total gravitational force on each particle
     """
-    topology_type = getattr(config, 'topology_type', 0)
+    N = pos.shape[0]
+    dim = pos.shape[1]
     
-    # FLAT topology: Use optimized vectorized Euclidean calculation
-    if topology_type == 0:
-        # 1. Compute pairwise displacement: r_j - r_i
-        # Shape: (N, N, dim)
-        # disp[i, j] is vector from i to j
-        disp = pos[None, :, :] - pos[:, None, :]
+    # Check if neighbor engine is enabled (PS2.2)
+    use_neighbor_engine = getattr(config, 'enable_neighbor_engine', True)
+    
+    if use_neighbor_engine:
+        # PS2.2: Use centralized neighbor engine
+        from environment.topology_neighbors import generate_neighbor_pairs
         
-        # 2. Compute distances with softening
-        # Shape: (N, N)
-        dist_sq = jnp.sum(disp**2, axis=-1)
+        # Initialize force array
+        forces = jnp.zeros((N, dim))
         
-        # Apply softening: (r^2 + epsilon^2)^(3/2)
+        # Epsilon for softening
         epsilon = config.gravity_softening
-        softened_dist_cubed = (dist_sq + epsilon**2)**1.5
         
-    # NON-FLAT topologies: Use topology-aware calculations
-    else:
-        # For non-flat topologies, we need to use compute_offset and compute_distance
-        # This is less performant but necessary for correct topology handling
-        import jax
-        
-        def pairwise_offset(p_i, p_j):
-            return compute_offset(p_i, p_j, config)
+        # Generate forces for all neighbor pairs
+        for i, j, offset in generate_neighbor_pairs(pos, active, config):
+            # Compute distance
+            r_sq = jnp.sum(offset ** 2)
+            softened_dist_cubed = (r_sq + epsilon**2) ** 1.5
             
-        def pairwise_dist(p_i, p_j):
-            return compute_distance(p_i, p_j, config)
+            # Force magnitude: F = G * m_i * m_j / r³_soft
+            force_mag = config.G * mass[i] * mass[j] / softened_dist_cubed
+            
+            # Force vector from i to j
+            force_vec = force_mag * offset
+            
+            # Accumulate force on particle i
+            forces = forces.at[i].add(force_vec)
         
-        # Vectorize over all pairs using vmap
-        # disp[i, j] is offset from i to j
-        # dist[i, j] is distance from i to j
-        disp = jax.vmap(jax.vmap(pairwise_offset, (None, 0)), (0, None))(pos, pos)
-        dist = jax.vmap(jax.vmap(pairwise_dist, (None, 0)), (0, None))(pos, pos)
+        return forces
+    
+    else:
+        # LEGACY: Original vectorized implementation for backward compatibility
+        topology_type = getattr(config, 'topology_type', 0)
         
-        # Apply softening
-        epsilon = config.gravity_softening
-        softened_dist_cubed = (dist**2 + epsilon**2)**1.5
-    
-    # Mask mass of inactive entities so they don't exert gravity
-    # Shape: (N,)
-    active_mass = jnp.where(active, mass, 0.0)
-    
-    # 3. Compute gravitational force magnitudes with softening
-    # F = G * m1 * m2 / softened_dist_cubed
-    # Use real mass for receiver (i) and active_mass for source (j)
-    # This ensures inactive entities don't exert gravity.
-    # Shape: (N, N)
-    force_mag = config.G * mass[:, None] * active_mass[None, :] / softened_dist_cubed
-    
-    # 4. Compute force vectors
-    # force_vec[i, j] = force from j on i
-    # We use the offset vector (which already has the correct direction)
-    # Shape: (N, N, dim)
-    force_vec = force_mag[:, :, None] * disp
-    
-    # Sum forces on each entity i (sum over j)
-    # Shape: (N, dim)
-    total_force = jnp.sum(force_vec, axis=1)
-    
-    return total_force
+        # FLAT topology: Use optimized vectorized Euclidean calculation
+        if topology_type == 0:
+            # 1. Compute pairwise displacement: r_j - r_i
+            # Shape: (N, N, dim)
+            # disp[i, j] is vector from i to j
+            disp = pos[None, :, :] - pos[:, None, :]
+            
+            # 2. Compute distances with softening
+            # Shape: (N, N)
+            dist_sq = jnp.sum(disp**2, axis=-1)
+            
+            # Apply softening: (r^2 + epsilon^2)^(3/2)
+            epsilon = config.gravity_softening
+            softened_dist_cubed = (dist_sq + epsilon**2)**1.5
+            
+        # NON-FLAT topologies: Use topology-aware calculations
+        else:
+            # For non-flat topologies, we need to use compute_offset and compute_distance
+            # This is less performant but necessary for correct topology handling
+            import jax
+            
+            def pairwise_offset(p_i, p_j):
+                return compute_offset(p_i, p_j, config)
+                
+            def pairwise_dist(p_i, p_j):
+                return compute_distance(p_i, p_j, config)
+            
+            # Vectorize over all pairs using vmap
+            # disp[i, j] is offset from i to j
+            # dist[i, j] is distance from i to j
+            disp = jax.vmap(jax.vmap(pairwise_offset, (None, 0)), (0, None))(pos, pos)
+            dist = jax.vmap(jax.vmap(pairwise_dist, (None, 0)), (0, None))(pos, pos)
+            
+            # Apply softening
+            epsilon = config.gravity_softening
+            softened_dist_cubed = (dist**2 + epsilon**2)**1.5
+        
+        # Mask mass of inactive entities so they don't exert gravity
+        # Shape: (N,)
+        active_mass = jnp.where(active, mass, 0.0)
+        
+        # 3. Compute gravitational force magnitudes with softening
+        # F = G * m1 * m2 / softened_dist_cubed
+        # Use real mass for receiver (i) and active_mass for source (j)
+        # This ensures inactive entities don't exert gravity.
+        # Shape: (N, N)
+        force_mag = config.G * mass[:, None] * active_mass[None, :] / softened_dist_cubed
+        
+        # 4. Compute force vectors
+        # force_vec[i, j] = force from j on i
+        # We use the offset vector (which already has the correct direction)
+        # Shape: (N, N, dim)
+        force_vec = force_mag[:, :, None] * disp
+        
+        # Sum forces on each entity i (sum over j)
+        # Shape: (N, dim)
+        total_force = jnp.sum(force_vec, axis=1)
+        
+        return total_force
 
 
 def integrate_euler(pos, vel, force, mass, active, dt):

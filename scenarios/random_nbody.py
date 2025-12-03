@@ -1,6 +1,6 @@
 import jax
 
-from state import UniverseConfig, initialize_state
+from state import UniverseConfig, UniverseState, initialize_state
 from entities import spawn_entity
 
 
