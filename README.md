@@ -182,6 +182,24 @@ Outputs to: outputs/animations/
 Or run all:
 python tools/run_all_visualizations.py
 
+🚀 Running the app
+
+The following steps show how to run CosmoSim from the terminal (PowerShell).
+
+```powershell
+# Create a virtual environment
+python -m venv .venv
+
+# Activate the environment
+.\.venv\Scripts\Activate.ps1
+
+# Install required packages (no requirements.txt in this repo)
+pip install jax matplotlib pytest
+
+# Run a scenario (e.g., bulk_ring) with a debug view
+python cosmosim.py --scenario bulk_ring --view debug
+```
+
 🔧 Installation
 
 Create a virtual environment:
@@ -198,7 +216,7 @@ PowerShell:
 
 Install dependencies:
 
-pip install -r requirements.txt
+pip install jax matplotlib pytest
 
 
 Or minimal required:

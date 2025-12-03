@@ -525,7 +525,7 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
     if view_mode == "debug":
         from viewer.viewer import Viewer
         print(f"Launching interactive viewer...")
-        viewer = Viewer(cfg, state)
+        viewer = Viewer(cfg, state, scenario_name=scenario_name, pss_params=merged_params)
         viewer.run()
         return
 

@@ -18,15 +18,20 @@ from viewer.overlays.inspector import InspectorOverlay
 from viewer.overlays.vectors import VectorOverlay
 from viewer.overlays.trajectories import TrajectoryOverlay
 from viewer.metrics import MetricsEngine
+from viewer.params_panel import ParameterPanel
+from dataclasses import asdict
 
 class Viewer:
     """Interactive viewer for CosmoSim simulations."""
     
-    def __init__(self, config: UniverseConfig, state: UniverseState):
+    def __init__(self, config: UniverseConfig, state: UniverseState, scenario_name: str = "Unknown", pss_params: dict = None):
         self.initial_config = config
         self.config = config
         self.initial_state = state
         self.state = state
+        self.scenario_name = scenario_name
+        self.pss_params_dict = pss_params if pss_params else {}
+        self.config_as_dict = asdict(config)
         
         # UI State
         self.paused = False
@@ -36,6 +41,8 @@ class Viewer:
         self.show_acceleration_vectors = False
         self.show_trajectories = False
         self.show_diagnostics_panel = False
+        self.show_params_panel = False
+        self.frame_counter = 0
         
         self.color_mode = "type"  # "type", "constant", "velocity"
         self.render_radius_mode = "constant"  # "constant", "scaled"
@@ -65,6 +72,9 @@ class Viewer:
         plt.ion()  # Interactive mode
         self.fig, self.ax = plt.subplots(figsize=(10, 10))
         self.setup_plot()
+        
+        # Initialize Parameter Panel
+        self.params_panel = ParameterPanel(self.fig)
         
         # Event Connections
         self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
@@ -130,6 +140,9 @@ class Viewer:
             self.metrics.toggle('velocity_hist')
         elif key == 'u':
             self.metrics.toggle('substrate_diag')
+        elif key == 'P':  # Shift+P for params panel
+            self.show_params_panel = not self.show_params_panel
+            self.params_panel.set_visible(self.show_params_panel)
             
         # Reset
         elif key == 'R':
@@ -193,6 +206,20 @@ class Viewer:
             "t": float(self.state.time),
             "dt": float(current_dt),
             "active_count": int(jnp.sum(self.state.entity_active))
+        })
+        
+        # Update Parameter Panel State
+        self.params_panel.update({
+            "scenario_name": self.scenario_name,
+            "universe_config": self.config_as_dict,
+            "pss_params": self.pss_params_dict,
+            "flags": {
+                "diagnostics": self.show_diagnostics_panel,
+                "neighbor_engine": getattr(self.config, 'enable_neighbor_engine', False),
+                "spatial_partition": getattr(self.config, 'enable_spatial_partition', False)
+            },
+            "current_frame": self.frame_idx,
+            "current_time": float(self.state.time)
         })
 
     def get_colors(self):
@@ -258,6 +285,11 @@ class Viewer:
         # Render diagnostics panel (separate figure)
         if self.show_diagnostics_panel and self.frame_idx % 10 == 0:  # Update at ~4-5 FPS (every 10 frames)
             self.render_diagnostics_panel()
+            
+        # Render params panel (throttled)
+        self.frame_counter += 1
+        if self.show_params_panel and self.frame_counter % 10 == 0:
+            self.params_panel.render()
             
     def render_diagnostics_panel(self):
         """Render metrics diagnostics in separate figure."""
