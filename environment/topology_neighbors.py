@@ -213,12 +213,13 @@ def generate_partitioned_pairs(positions, active_mask, partition, config):
     """
     Generate neighbor pairs using spatial partitioning.
     
-    Uses PS2.2's compute_topology_offset() but limits search space to
-    neighboring cells only, reducing complexity from O(N²) to O(N).
+    Uses PS2.2's compute_topology_offset() with spatial partitioning for
+    better cache locality and organization. For infinite-range forces (gravity),
+    we still check all pairs but in a spatially-organized manner.
     
     Args:
         positions: Array of shape (N, dim) - particle positions
-        active_mask: Array of shape (N,) -boolean mask for active particles
+        active_mask: Array of shape (N,) - boolean mask for active particles
         partition: Partition structure from start_spatial_partition()
         config: UniverseConfig containing topology information
         
@@ -233,6 +234,7 @@ def generate_partitioned_pairs(positions, active_mask, partition, config):
         - Returns symmetric pairs: both (i,j) and (j,i)
         - Only returns pairs where both particles are active
         - Deterministic iteration order (sorted cells, sorted indices)
+        - Checks ALL pairs (not just neighbors) for infinite-range forces
     """
     if partition is None:
         # Fallback to non-partitioned pairs
@@ -241,38 +243,33 @@ def generate_partitioned_pairs(positions, active_mask, partition, config):
         return
   
     grid = partition['grid']
-    cell_size = partition['cell_size']
-    num_cells = partition.get('num_cells')
-    topology_type = partition.get('topology_type', 0)
-    
-    # Import neighbor cell lookup
-    from environment.spatial_partition import get_neighbor_cells, compute_cell_index
     
     # Convert to numpy for indexing
     import numpy as np
     positions_np = np.array(positions)
     
-    # Track pairs we've already yielded to avoid duplicates
-    yielded_pairs = set()
+    # To ensure we yield all pairs symmetrically without duplicates,
+    # we track pairs we've processed. For each unique unordered pair {i,j},
+    # we yield both (i,j) and (j,i).
+    processed_pairs = set()
     
-    # Iterate over all cells in sorted order (determinism)
-    for cell_idx in sorted(grid.keys()):
+    # Get all particle indices from all cells (sorted for determinism)
+    all_cells = sorted(grid.keys())
+    
+    # For infinite-range forces, we need to check ALL pairs
+    # The partition provides spatial organization for better cache locality
+    for cell_idx in all_cells:
         particles_in_cell = grid[cell_idx]
         
-        # Get neighboring cells
-        neighbor_cells = get_neighbor_cells(cell_idx, topology_type, num_cells)
-        
-        # For each particle in this cell
-        for i in particles_in_cell:
-            if not active_mask[i]:
-                continue
+        # Check against all other cells (including this one)
+        for other_cell_idx in all_cells:
+            particles_in_other_cell = grid[other_cell_idx]
             
-            # Check all particles in neighboring cells
-            for neighbor_cell in neighbor_cells:
-                if neighbor_cell not in grid:
+            for i in particles_in_cell:
+                if not active_mask[i]:
                     continue
                 
-                for j in grid[neighbor_cell]:
+                for j in particles_in_other_cell:
                     if not active_mask[j]:
                         continue
                     
@@ -280,15 +277,18 @@ def generate_partitioned_pairs(positions, active_mask, partition, config):
                     if i == j:
                         continue
                     
-                    # Check if we've already yielded this pair
-                    # Note: We want BOTH (i,j) and (j,i) for symmetric forces
-                    pair_key = (i, j)
-                    if pair_key in yielded_pairs:
+                    # Create canonical pair key (sorted to avoid duplicates)
+                    pair_key = tuple(sorted([i, j]))
+                    if pair_key in processed_pairs:
                         continue
                     
-                    yielded_pairs.add(pair_key)
+                    processed_pairs.add(pair_key)
                     
-                    # Compute topology-aware offset
-                    offset = compute_topology_offset(positions_np[i], positions_np[j], config)
+                    # Yield BOTH directions for symmetric forces
+                    # (i, j) direction
+                    offset_ij = compute_topology_offset(positions_np[i], positions_np[j], config)
+                    yield i, j, offset_ij
                     
-                    yield i, j, offset
+                    # (j, i) direction
+                    offset_ji = compute_topology_offset(positions_np[j], positions_np[i], config)
+                    yield j, i, offset_ji
