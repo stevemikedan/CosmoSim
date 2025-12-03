@@ -1,98 +1,123 @@
-left: 20px;
-color: #fff;
-background: rgba(0, 0, 0, 0.7);
-padding: 15px;
-border-radius: 8px;
-font-size: 14px;
-line-height: 1.6;
-pointer-events: none;
-font-family: 'Courier New', monospace;
-}
+<!DOCTYPE html>
+<html lang="en">
 
-/* Controls Panel */
-#controls {
-position: absolute;
-bottom: 30px;
-left: 50%;
-transform: translateX(-50%);
-background: rgba(0, 0, 0, 0.8);
-padding: 15px 25px;
-border-radius: 12px;
-display: flex;
-gap: 10px;
-align-items: center;
-}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CosmoSim Frame Player</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-button {
-background: #2196F3;
-border: none;
-color: white;
-padding: 10px 20px;
-border-radius: 6px;
-cursor: pointer;
-font-size: 14px;
-font-weight: 500;
-transition: background 0.2s;
-}
+        #cosmosim-canvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
 
-button:hover {
-background: #1976D2;
-}
+        /* HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+            pointer-events: none;
+            font-family: 'Courier New', monospace;
+        }
 
-button:active {
-background: #0D47A1;
-}
+        /* Controls Panel */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
 
-button:disabled {
-background: #555;
-cursor: not-allowed;
-}
+        button {
+            background: #2196F3;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
 
-/* Loading Overlay */
-#loading {
-position: absolute;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-background: rgba(0, 0, 0, 0.95);
-display: flex;
-flex-direction: column;
-justify-content: center;
-align-items: center;
-color: white;
-z-index: 1000;
-}
+        button:hover {
+            background: #1976D2;
+        }
 
-#loading.hidden {
-display: none;
-}
+        button:active {
+            background: #0D47A1;
+        }
 
-.loading-text {
-font-size: 24px;
-margin-bottom: 20px;
-}
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
 
-.loading-progress {
-font-size: 16px;
-color: #2196F3;
-}
+        /* Loading Overlay */
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 1000;
+        }
 
-.load-buttons {
-margin-top: 30px;
-display: flex;
-flex-direction: column;
-gap: 15px;
-align-items: center;
-}
+        #loading.hidden {
+            display: none;
+        }
 
-.error-message {
-color: #f44336;
-margin-top: 20px;
-max-width: 600px;
-text-align: center;
-}
-</style>
+        .loading-text {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .loading-progress {
+            font-size: 16px;
+            color: #2196F3;
+        }
+
+        .load-buttons {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .error-message {
+            color: #f44336;
+            margin-top: 20px;
+            max-width: 600px;
+            text-align: center;
+        }
+    </style>
 </head>
 
 <body>
