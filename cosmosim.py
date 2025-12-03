@@ -96,6 +96,103 @@ def parse_param_string(param_str: str | None) -> dict:
     return params
 
 
+def validate_schema(schema: dict) -> list[str]:
+    """
+    Validate the schema definition itself.
+    
+    Checks:
+    - Structural correctness (type, default)
+    - Min/max applicability
+    - Allowed values consistency
+    - Default value validity
+    
+    Returns:
+        List of warning messages (empty if valid)
+    """
+    warnings = []
+    for key, spec in schema.items():
+        if not isinstance(spec, dict):
+            warnings.append(f"Invalid schema for param '{key}' (not a dict)")
+            continue
+            
+        # Check required fields
+        if 'type' not in spec:
+            warnings.append(f"Param '{key}' missing 'type'")
+            continue
+        if 'default' not in spec and not spec.get('required', False):
+            warnings.append(f"Param '{key}' missing 'default' (and not required)")
+            
+        param_type = spec['type']
+        
+        # Check min/max applicability
+        if param_type not in ('int', 'float'):
+            if 'min' in spec or 'max' in spec:
+                warnings.append(f"Param '{key}' has min/max but type is {param_type}")
+                
+        # Check min < max
+        if 'min' in spec and 'max' in spec:
+            if spec['min'] > spec['max']:
+                warnings.append(f"Param '{key}' has min > max ({spec['min']} > {spec['max']})")
+                
+        # Check default value validity
+        if 'default' in spec:
+            default_val = spec['default']
+            
+            # Type check default
+            try:
+                if param_type == 'int' and not isinstance(default_val, int):
+                    warnings.append(f"Param '{key}' default {default_val} is not int")
+                elif param_type == 'float' and not isinstance(default_val, (float, int)):
+                    warnings.append(f"Param '{key}' default {default_val} is not float")
+                elif param_type == 'bool' and not isinstance(default_val, bool):
+                    warnings.append(f"Param '{key}' default {default_val} is not bool")
+            except Exception:
+                pass
+                
+            # Bounds check default
+            if param_type in ('int', 'float'):
+                if 'min' in spec and default_val < spec['min']:
+                    warnings.append(f"Param '{key}' default {default_val} < min {spec['min']}")
+                if 'max' in spec and default_val > spec['max']:
+                    warnings.append(f"Param '{key}' default {default_val} > max {spec['max']}")
+                    
+            # Allowed check default
+            if 'allowed' in spec:
+                if default_val not in spec['allowed']:
+                    warnings.append(f"Param '{key}' default {default_val} not in allowed values")
+                    
+    return warnings
+
+
+def safe_convert_type(value_str: str, target_type: str) -> Any:
+    """
+    Safely convert string value to target type.
+    
+    Args:
+        value_str: String value from CLI
+        target_type: 'int', 'float', 'bool', or 'str'
+        
+    Returns:
+        Converted value
+        
+    Raises:
+        ValueError: If conversion fails
+    """
+    if target_type == 'int':
+        return int(value_str)
+    elif target_type == 'float':
+        return float(value_str)
+    elif target_type == 'bool':
+        lower_val = value_str.lower()
+        if lower_val in ('true', 'yes', 'y', '1'):
+            return True
+        if lower_val in ('false', 'no', 'n', '0'):
+            return False
+        raise ValueError(f"Invalid boolean value: {value_str}")
+    else:
+        return value_str
+
+
 def load_scenario_schema(module: Any) -> dict | None:
     """
     Extract SCENARIO_PARAMS schema from module if present.
@@ -110,20 +207,17 @@ def load_scenario_schema(module: Any) -> dict | None:
     if not isinstance(schema, dict):
         return None
     
-    # Validate schema format
-    for key, spec in schema.items():
-        if not isinstance(spec, dict):
-            print(f"[PSS] Warning: Invalid schema for param '{key}' (not a dict)")
-            continue
-        if 'type' not in spec or 'default' not in spec:
-            print(f"[PSS] Warning: Invalid schema for param '{key}' (missing 'type' or 'default')")
+    # Validate schema and print warnings
+    warnings = validate_schema(schema)
+    for warning in warnings:
+        print(f"[PSS WARNING] {warning}")
     
     return schema
 
 
 def merge_params(schema: dict | None, cli_params: dict) -> dict:
     """
-    Merge CLI parameters with schema defaults.
+    Merge CLI parameters with schema defaults using robust validation.
     
     Args:
         schema: Parameter schema from SCENARIO_PARAMS
@@ -133,51 +227,60 @@ def merge_params(schema: dict | None, cli_params: dict) -> dict:
         dict with typed, validated, and bounded parameters
     """
     if not schema:
-        if cli_params:
-            print("[PSS] Warning: CLI params provided but scenario has no schema")
+        # Warning handled in run_scenario for Case C
         return {}
     
     merged = {}
     
-    # Start with defaults from schema
+    # 1. Initialize with defaults
     for key, spec in schema.items():
-        merged[key] = spec['default']
-    
-    # Apply CLI overrides
+        if 'default' in spec:
+            merged[key] = spec['default']
+            
+    # 2. Apply CLI overrides
     for key, value_str in cli_params.items():
         if key not in schema:
-            print(f"[PSS] Warning: Unknown parameter '{key}' ignored")
+            print(f"[PSS WARNING] Unknown parameter '{key}' ignored")
             continue
         
         spec = schema[key]
         param_type = spec.get('type', 'str')
         
-        # Type conversion
         try:
-            if param_type == 'int':
-                value = int(value_str)
-            elif param_type == 'float':
-                value = float(value_str)
-            elif param_type == 'bool':
-                value = value_str.lower() in ('true', '1', 'yes', 'y')
-            else:  # str
-                value = value_str
+            # Type Conversion
+            value = safe_convert_type(value_str, param_type)
             
-            # Bounds checking for numeric types
+            # Allowed Values Check
+            if 'allowed' in spec and value not in spec['allowed']:
+                print(f"[PSS WARNING] Value '{value}' not allowed for '{key}'; using default")
+                continue
+            
+            # Bounds Checking
             if param_type in ('int', 'float'):
                 if 'min' in spec and value < spec['min']:
-                    print(f"[PSS] Warning: {key}={value} below min={spec['min']}, clamping")
+                    print(f"[PSS WARNING] {key}={value} below min={spec['min']}, clamping")
                     value = spec['min']
                 if 'max' in spec and value > spec['max']:
-                    print(f"[PSS] Warning: {key}={value} above max={spec['max']}, clamping")
+                    print(f"[PSS WARNING] {key}={value} above max={spec['max']}, clamping")
                     value = spec['max']
             
             merged[key] = value
             
-        except (ValueError, AttributeError) as e:
-            print(f"[PSS] Warning: Invalid type for parameter '{key}'; using default")
-            merged[key] = spec['default']
-    
+        except ValueError:
+            print(f"[PSS WARNING] Invalid type for parameter '{key}'; using default")
+            # Keep default value
+            
+    # 3. Check Required Parameters
+    for key, spec in schema.items():
+        if spec.get('required', False) and key not in cli_params:
+            if 'default' in spec:
+                print(f"[PSS WARNING] Required param '{key}' missing; using default")
+                # Ensure default is set (it should be from step 1, but safe to ensure)
+                if key not in merged:
+                    merged[key] = spec['default']
+            else:
+                print(f"[PSS WARNING] Required param '{key}' missing and no default provided")
+                
     return merged
 
 
@@ -259,15 +362,23 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
     # Step 2.5: PSS - Parameterized Scenario System
     schema = load_scenario_schema(module)
     cli_params = parse_param_string(getattr(args, 'params', None))
-    merged_params = merge_params(schema, cli_params)
+    
+    # Case C: No schema but params provided
+    if not schema and cli_params:
+        print("[PSS WARNING] Scenario does not define SCENARIO_PARAMS; ignoring --params.")
+        merged_params = {}
+    else:
+        merged_params = merge_params(schema, cli_params)
     
     # PSS Logging
     if schema:
-        print(f"[PSS] Loaded schema with {len(schema)} parameters")
-    if cli_params:
-        print(f"[PSS] Applied CLI overrides: {cli_params}")
-    if merged_params:
-        print(f"[PSS] Final merged parameters: {merged_params}")
+        if cli_params:
+            # Case B: Schema exists & CLI overrides supplied
+            print(f"[PSS] Applied CLI overrides: {cli_params}")
+            print(f"[PSS] Final merged parameters: {merged_params}")
+        else:
+            # Case A: Schema exists & no CLI overrides
+            print(f"[PSS] Using schema defaults: {merged_params}")
 
     # Step 3: Build initial state
     print("Initializing universe state...")

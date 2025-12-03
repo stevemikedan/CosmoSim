@@ -249,9 +249,9 @@ def test_merge_params_missing_schema_with_cli(capsys):
     
     assert result == {}
     
-    # Should print warning
+    # Should NOT print warning (warning moved to run_scenario)
     captured = capsys.readouterr()
-    assert "CLI params provided but scenario has no schema" in captured.out
+    assert captured.out == ""
 
 
 def test_merge_params_multiple_overrides():
