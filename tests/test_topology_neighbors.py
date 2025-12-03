@@ -237,7 +237,9 @@ def test_active_mask_respected():
 # =============================================================================
 def test_neighbor_engine_flag_off_restores_original_behavior():
     """Test that enable_neighbor_engine=False uses legacy code path."""
-    config_new = UniverseConfig(
+    # Note: enable_neighbor_engine defaults to False due to JIT incompatibility
+    # This test verifies the neighbor engine produces identical results when enabled
+    config_legacy = UniverseConfig(
         physics_mode=0,
         radius=10.0,
         max_entities=3,
@@ -246,10 +248,10 @@ def test_neighbor_engine_flag_off_restores_original_behavior():
         c=1.0,
         G=1.0,
         topology_type=0,  # FLAT
-        enable_neighbor_engine=True  # NEW engine
+        enable_neighbor_engine=False  # Legacy (default)
     )
     
-    config_legacy = config_new.replace(enable_neighbor_engine=False)
+    config_new = config_legacy.replace(enable_neighbor_engine=True)  # Enable new engine
     
     positions = jnp.array([
         [0.0, 0.0],
@@ -259,11 +261,11 @@ def test_neighbor_engine_flag_off_restores_original_behavior():
     masses = jnp.array([1.0, 1.0, 1.0])
     active = jnp.array([True, True, True])
     
-    # Compute forces with new engine
-    forces_new = compute_gravity_forces(positions, masses, active, config_new)
-    
-    # Compute forces with legacy engine
+    # Compute forces with legacy engine (default)
     forces_legacy = compute_gravity_forces(positions, masses, active, config_legacy)
+    
+    # Compute forces with new engine (explicitly enabled, non-JIT)
+    forces_new = compute_gravity_forces(positions, masses, active, config_new)
     
     # Forces should be identical
     assert jnp.allclose(forces_new, forces_legacy, atol=1e-6), \
