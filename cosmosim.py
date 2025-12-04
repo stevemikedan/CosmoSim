@@ -33,8 +33,18 @@ def export_simulation_single(cfg, state, outfile: str, steps: int = 300):
     from exporters.json_export import get_frame_dict
     import kernel
 
+    import dataclasses
+    
+    # Serialize config (handle chex.dataclass/dataclass)
+    if hasattr(cfg, "to_dict"):
+        config_dict = cfg.to_dict()
+    elif dataclasses.is_dataclass(cfg):
+        config_dict = dataclasses.asdict(cfg)
+    else:
+        config_dict = {}
+
     data = {
-        "config": cfg.to_dict() if hasattr(cfg, "to_dict") else {},
+        "config": config_dict,
         "frames": []
     }
 
@@ -55,6 +65,69 @@ def export_simulation_single(cfg, state, outfile: str, steps: int = 300):
     print(f"[EXPORT] Saved single JSON file: {outfile}")
 
 __version__ = "0.2"
+
+# =====================================================================
+# CORE PHYSICS PARAMETERS
+# =====================================================================
+# These parameters are available to ALL scenarios and map directly to
+# UniverseConfig fields. They can be overridden via CLI --params.
+
+CORE_PHYSICS_PARAMS = {
+    "dt": {
+        "type": "float",
+        "default": 0.2,
+        "min": 0.001,
+        "max": 10.0,
+        "description": "Simulation timestep (smaller = more accurate but slower)"
+    },
+    "G": {
+        "type": "float",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 1000.0,
+        "description": "Gravitational constant"
+    },
+    "c": {
+        "type": "float",
+        "default": 1.0,
+        "min": 0.001,
+        "max": 100.0,
+        "description": "Speed of light (limits max velocity)"
+    },
+    "topology_type": {
+        "type": "int",
+        "default": 0,
+        "allowed": [0, 1],
+        "description": "Topology: 0=flat, 1=toroidal"
+    },
+    "physics_mode": {
+        "type": "int",
+        "default": 0,
+        "allowed": [0, 1],
+        "description": "Physics mode: 0=newtonian, 1=relativistic"
+    },
+    "max_entities": {
+        "type": "int",
+        "default": 100,
+        "min": 1,
+        "max": 100000,
+        "description": "Maximum number of entities in simulation"
+    },
+    "radius": {
+        "type": "float",
+        "default": 10.0,
+        "min": 0.1,
+        "max": 1000.0,
+        "description": "Universe radius (for bounded topologies)"
+    },
+    "dim": {
+        "type": "int",
+        "default": 3,
+        "allowed": [2, 3],
+        "description": "Spatial dimensionality (2 or 3)"
+    },
+}
+
 
 
 def load_scenarios() -> dict[str, str]:
@@ -384,49 +457,27 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
     """
     Execute a scenario module with the given arguments.
     """
-    # Step 1: Build configuration
-    print(f"Building configuration for '{scenario_name}'...")
-    cfg = module.build_config()
-
-    # Apply CLI overrides to config if supported
-    # Note: This is a shallow copy replace. Ideally we'd have a robust config override system.
-    # For now, we assume scenarios use the config passed to run() or we modify it here.
-    # Since config is a frozen dataclass (chex), we use .replace()
-    
-    overrides = {}
-    if args.dt is not None: overrides["dt"] = args.dt
-    if args.entities is not None: overrides["max_entities"] = args.entities
-    # Topology/Substrate/Expansion overrides would require logic to map string to int/enum
-    # For now, we just pass them if the scenario supports them or if we can map them.
-    # Keeping it simple for Phase 1 as requested: "without altering physics logic"
-    # We will just pass these as kwargs to run() if accepted, or rely on scenario to parse them?
-    # The prompt says "Required CLI arguments... add if missing". 
-    # It implies we should use them. But standard scenarios might not look at them.
-    # We'll apply what we can to UniverseConfig if the fields match.
-    
-    if overrides:
-        cfg = cfg.replace(**overrides)
-
-    # Step 2: Config dump
-    if args.config_dump:
-        print("\nConfiguration:")
-        print(cfg)
-        print()
-
-    # Step 2.5: PSS - Parameterized Scenario System
+    # Step 1: PSS - Load and merge parameter schemas
+    # Merge CORE_PHYSICS_PARAMS with scenario-specific params
     schema = load_scenario_schema(module)
+    
+    # Create unified schema: core params + scenario params
+    # Scenario params can override core param definitions if needed
+    full_schema = {**CORE_PHYSICS_PARAMS}
+    if schema:
+        full_schema.update(schema)
+    
     presets = load_scenario_presets(module)
     cli_params = parse_param_string(getattr(args, 'params', None))
     preset_name = getattr(args, 'preset', None)
     
     merged_params = {}
     
-    # 1. Start with Schema Defaults
-    if schema:
-        for key, spec in schema.items():
-            if 'default' in spec:
-                merged_params[key] = spec['default']
-                
+    # 1. Start with Schema Defaults (includes both core and scenario defaults)
+    for key, spec in full_schema.items():
+        if 'default' in spec:
+            merged_params[key] = spec['default']
+
     # 2. Apply Preset Overrides
     if preset_name:
         if not presets:
@@ -437,7 +488,6 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
             print(f"[PSS] Using preset '{preset_name}'")
             preset_values = presets[preset_name]
             
-            # Merge preset values (validated later)
             for key, value in preset_values.items():
                 merged_params[key] = value
                 
@@ -453,80 +503,79 @@ def run_scenario(module: Any, args: argparse.Namespace, scenario_name: str) -> N
         for key, value in cli_params.items():
             merged_params[key] = value
 
-    # 4. Final Validation (using PSS1.2 logic)
-    # We re-run merge_params logic but on the already-merged dictionary to enforce types/bounds
-    # This is slightly inefficient but safe. Better: use merge_params to validate the final set.
-    # Actually, merge_params expects raw CLI strings. 
-    # We need a validation pass on the final mixed dictionary.
-    
-    # Let's use a custom validation pass here that reuses safe_convert_type and bounds checks
+    # 4. Final Validation using unified schema
     final_params = {}
-    if schema:
-        for key, value in merged_params.items():
-            if key not in schema:
-                if cli_params and key in cli_params:
-                     print(f"[PSS WARNING] Unknown parameter '{key}' ignored")
-                continue
-                
-            spec = schema[key]
-            param_type = spec.get('type', 'str')
+    for key, value in merged_params.items():
+        if key not in full_schema:
+            if cli_params and key in cli_params:
+                 print(f"[PSS WARNING] Unknown parameter '{key}' ignored")
+            continue
             
-            try:
-                # Ensure value is correct type (it might be raw string from CLI or typed from preset)
-                # If it's already typed (from default or preset), safe_convert_type might fail if it expects string?
-                # safe_convert_type handles strings. If value is already int/float, we should check.
-                
-                if isinstance(value, str):
-                    value = safe_convert_type(value, param_type)
-                
-                # Allowed Values Check
-                if 'allowed' in spec and value not in spec['allowed']:
-                    print(f"[PSS WARNING] Value '{value}' not allowed for '{key}'; using default")
-                    if 'default' in spec:
-                        value = spec['default']
-                    else:
-                        continue # Skip if no default
-                
-                # Bounds Checking
-                if param_type in ('int', 'float'):
-                    if 'min' in spec and value < spec['min']:
-                        print(f"[PSS WARNING] {key}={value} below min={spec['min']}, clamping")
-                        value = spec['min']
-                    if 'max' in spec and value > spec['max']:
-                        print(f"[PSS WARNING] {key}={value} above max={spec['max']}, clamping")
-                        value = spec['max']
-                
-                final_params[key] = value
-                
-            except ValueError:
-                print(f"[PSS WARNING] Invalid type for parameter '{key}'; using default")
+        spec = full_schema[key]
+        param_type = spec.get('type', 'str')
+        
+        try:
+            # Ensure value is correct type (convert strings from CLI)
+            if isinstance(value, str):
+                value = safe_convert_type(value, param_type)
+            
+            # Allowed Values Check
+            if 'allowed' in spec and value not in spec['allowed']:
+                print(f"[PSS WARNING] Value '{value}' not allowed for '{key}'; using default")
                 if 'default' in spec:
-                    final_params[key] = spec['default']
-
-        # Check Required Parameters
-        for key, spec in schema.items():
-            if spec.get('required', False) and key not in final_params:
-                if 'default' in spec:
-                    print(f"[PSS WARNING] Required param '{key}' missing; using default")
-                    final_params[key] = spec['default']
+                    value = spec['default']
                 else:
-                    print(f"[PSS WARNING] Required param '{key}' missing and no default provided")
-    else:
-        # No schema case
-        if cli_params:
-             print("[PSS WARNING] Scenario does not define SCENARIO_PARAMS; ignoring --params.")
-        if preset_name and presets and preset_name in presets:
-             # Allow presets even without schema (as per user request)
-             final_params = presets[preset_name]
-             print(f"[PSS] Using preset '{preset_name}' (no schema validation)")
+                    continue # Skip if no default
+            
+            # Bounds Checking
+            if param_type in ('int', 'float'):
+                if 'min' in spec and value < spec['min']:
+                    print(f"[PSS WARNING] {key}={value} below min={spec['min']}, clamping")
+                    value = spec['min']
+                if 'max' in spec and value > spec['max']:
+                    print(f"[PSS WARNING] {key}={value} above max={spec['max']}, clamping")
+                    value = spec['max']
+            
+            final_params[key] = value
+            
+        except ValueError:
+            print(f"[PSS WARNING] Invalid type for parameter '{key}'; using default")
+            if 'default' in spec:
+                final_params[key] = spec['default']
+
+    # Check Required Parameters (after validation loop)
+    for key, spec in full_schema.items():
+        if spec.get('required', False) and key not in final_params:
+            if 'default' in spec:
+                print(f"[PSS WARNING] Required param '{key}' missing; using default")
+                final_params[key] = spec['default']
+            else:
+                print(f"[PSS WARNING] Required param '{key}' missing and no default provided")
 
     merged_params = final_params
 
     # PSS Logging Final
     if merged_params:
         print(f"[PSS] Final merged parameters: {merged_params}")
-    elif schema and not cli_params and not preset_name:
-         print(f"[PSS] Using schema defaults: {merged_params}")
+    elif full_schema and not cli_params and not preset_name:
+         print(f"[PSS] Using schema defaults")
+
+    # Step 2: Build configuration with params
+    print(f"Building configuration for '{scenario_name}'...")
+    
+    # Check if build_config accepts params
+    sig = inspect.signature(module.build_config)
+    if 'params' in sig.parameters:
+        cfg = module.build_config(merged_params if merged_params else None)
+    else:
+        cfg = module.build_config()
+
+    # Config dump
+    if args.config_dump:
+        print("\nConfiguration:")
+        print(cfg)
+        print()
+
 
     # Step 3: Build initial state
     print("Initializing universe state...")

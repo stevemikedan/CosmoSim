@@ -10,26 +10,52 @@ import jax.numpy as jnp
 from state import UniverseConfig, UniverseState
 from kernel import step_simulation
 
+SCENARIO_PRESETS = {
+    "wide-orbit": {
+        "radius": 40.0,
+        "dt": 0.02,
+    },
+    "tight-orbit": {
+        "radius": 10.0,
+        "dt": 0.01,
+    },
+    "high-energy": {
+        "G": 12.0,
+        "dt": 0.005,
+    },
+    "stable-ish": {
+        "G": 2.0,
+        "dt": 0.015,
+    },
+}
 
-def build_config():
+def build_config(params: dict | None = None):
     """
     Create a 3-body configuration.
     """
+    p = params or {}
+    radius = p.get('radius', 10.0)
+    dt = p.get('dt', 0.1)
+    G = p.get('G', 1.0)
+    c = p.get('c', 1.0)
+    topology_type = p.get('topology_type', 0)
+    physics_mode = p.get('physics_mode', 0)
+
     return UniverseConfig(
-        physics_mode=0,        # 0 = VECTOR (Newtonian gravity)
-        radius=10.0,
+        physics_mode=physics_mode,        # 0 = VECTOR (Newtonian gravity)
+        radius=radius,
         max_entities=3,
         max_nodes=1,
-        dt=0.1,
-        c=1.0,
-        G=1.0,
+        dt=dt,
+        c=c,
+        G=G,
         dim=2,
-        topology_type=0,       # flat
-        bounds=10.0,
+        topology_type=topology_type,       # flat
+        bounds=radius,
     )
 
 
-def build_initial_state(cfg: UniverseConfig) -> UniverseState:
+def build_initial_state(cfg: UniverseConfig, params: dict | None = None) -> UniverseState:
     """
     Build the initial UniverseState with three orbiting stars.
     """
