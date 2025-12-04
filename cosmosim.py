@@ -17,6 +17,7 @@ from typing import Any
 
 # JSON exporter import
 from exporters.json_export import export_simulation
+from topologies.mobius_topology import MobiusTopology
 
 ############################################################
 # NEW: Single-file JSON exporter for the web viewer
@@ -97,8 +98,8 @@ CORE_PHYSICS_PARAMS = {
     "topology_type": {
         "type": "int",
         "default": 0,
-        "allowed": [0, 1],
-        "description": "Topology: 0=flat, 1=toroidal"
+        "allowed": [0, 1, MobiusTopology.MOBIUS_TOPOLOGY],
+        "description": "Topology: 0=flat, 1=toroidal, 5=mobius"
     },
     "physics_mode": {
         "type": "int",

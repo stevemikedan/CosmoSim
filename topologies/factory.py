@@ -11,6 +11,7 @@ from .torus import TorusTopology
 from .sphere import SphereTopology
 from .bubble import BubbleTopology
 from .hyperbolic import HyperbolicTopology
+from .mobius_topology import MobiusTopology
 
 
 def get_topology_handler(
@@ -36,6 +37,9 @@ def get_topology_handler(
         >>> topology = get_topology_handler("torus", config)
         >>> wrapped_pos = topology.wrap_position(positions)
     """
+    if config.topology_type == MobiusTopology.MOBIUS_TOPOLOGY:
+        return MobiusTopology(config, **kwargs)
+
     if topology_type is None or topology_type == "flat":
         return FlatTopology(config, **kwargs)
     
