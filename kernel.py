@@ -7,6 +7,7 @@ from entities import spawn_entity, despawn_entity
 from topology import enforce_boundaries, apply_topology
 from physics.integrator import velocity_verlet
 from physics.forces import compute_forces
+from environment.topology_math import compute_distance
 
 def compute_diagnostics(state: UniverseState, config: UniverseConfig) -> UniverseState:
     """
@@ -41,7 +42,8 @@ def compute_diagnostics(state: UniverseState, config: UniverseConfig) -> Univers
     # Note: This duplicates distance calc from forces. 
     # In a highly optimized engine, we'd return PE from compute_forces or share the dist matrix.
     # For now, recomputing is cleaner for modularity.
-    from environment.topology_math import compute_distance
+    # Note: Using top-level import now.
+    # from environment.topology_math import compute_distance
     
     p1 = pos[:, None, :]
     p2 = pos[None, :, :]
@@ -81,90 +83,93 @@ def compute_diagnostics(state: UniverseState, config: UniverseConfig) -> Univers
     com = jnp.sum(mass_active[:, None] * pos, axis=0) / total_mass
     
     # 6. Energy Drift
-    # Ideally we compare to initial energy.
-    # Storing initial energy in state is tricky if state is immutable/stateless between runs.
-    # For now, we just store 0.0 or calculate relative change if we had E0.
-    # We'll leave drift as 0.0 for this step, or maybe user wants step-to-step drift?
-    # Usually drift is (E(t) - E(0)) / E(0).
-    # Without E(0) in state, we can't compute cumulative drift.
-    # We'll just store 0.0 for now, or maybe we can repurpose a field?
-    # Let's just store 0.0.
-    drift = 0.0
+    # Update baseline if step 0
+    # Requires state.initial_energy and state.step_count from state.py
+    current_initial = state.initial_energy
+    
+    # If step_count is 0, we adopt total_e as baseline.
+    initial_e = jnp.where(state.step_count == 0, total_e, current_initial)
+    
+    # Drift
+    # Avoid div by zero
+    denom = initial_e + 1e-12
+    drift = (total_e - initial_e) / denom
     
     return state.replace(
         kinetic_energy=jnp.array(ke),
         potential_energy=jnp.array(pe),
         total_energy=jnp.array(total_e),
         energy_drift=jnp.array(drift),
+        initial_energy=jnp.array(initial_e),
         momentum=mom,
         center_of_mass=com,
         dt_actual=jnp.array(config.dt)
     )
-
-def update_vector_physics(state: UniverseState, config: UniverseConfig) -> UniverseState:
-    """Update physics for VECTOR mode using Velocity Verlet."""
-    # Integrate
-    state = velocity_verlet(state, config, compute_forces)
-    
-    # Apply topology boundaries (wrapping)
-    # Note: velocity_verlet updates pos, but doesn't wrap.
-    # We wrap explicitly.
-    # However, integrator uses force_fn which uses topology-aware displacement.
-    # So particles can go arbitrarily far in "unwrapped" space during the step?
-    # No, we should wrap after integration to keep coordinates bounded.
-    
-    # Use legacy enforce_boundaries or new topology logic?
-    # PS2.4 says "Replace legacy displacement logic with topology_math functions."
-    # But for wrapping, we still need a wrap function.
-    # topology_math.py doesn't have wrap_position (it was in Topology classes).
-    # We should probably use `topology.apply_topology` or `enforce_boundaries`.
-    # Let's stick to `apply_topology` from `topology.py` which calls `enforce_boundaries`.
-    # Wait, `topology.py` imports `enforce_boundaries`.
-    
-    new_pos = state.entity_pos
-    new_vel = state.entity_vel
-    
-    final_pos, final_vel = apply_topology(new_pos, new_vel, config)
-    
-    state = state.replace(entity_pos=final_pos, entity_vel=final_vel)
-    
-    return state
-
-def update_lattice_physics(state: UniverseState, config: UniverseConfig) -> UniverseState:
-    """Update physics for LATTICE mode (no-op placeholder)."""
-    return state
-
-def dispatch_physics(state: UniverseState, config: UniverseConfig) -> UniverseState:
-    """Dispatch to the appropriate physics kernel based on physics_mode."""
-    def vector_branch(state):
-        return update_vector_physics(state, config)
-
-    def lattice_branch(state):
-        return update_lattice_physics(state, config)
-
-    def reserved_branch(state):
-        return state
-
-    branches = [
-        vector_branch,   # mode 0: VECTOR
-        lattice_branch,  # mode 1: LATTICE
-        reserved_branch, # mode 2+: RESERVED
-    ]
-
-    safe_mode = jnp.clip(config.physics_mode, 0, 2)
-    return jax.lax.switch(safe_mode, branches, state)
 
 def step_simulation(state: UniverseState, config: UniverseConfig) -> UniverseState:
     """Execute one simulation timestep."""
     # 1. Update global time
     state = state.replace(time=state.time + config.dt)
 
+    # Initial Force Computation (Step 0 Logic)
+    # Ensure acceleration is initialized before the first integration step.
+    # Note: Requires step_count and entity_acc in UniverseState (Step 3).
+    # Using jax.lax.cond for JIT compatibility if needed, but python control flow for now 
+    # as step_count is likely a tracer or scalar.
+    # Assuming step_count is a JAX array, we should technically use where or cond, 
+    # but for "Initialize" logic which happens once, 'if' might be tricky under JIT 
+    # unless step_count is static. 
+    # However, for now, we follow the requested structure.
+    # We will use a JAX-safe conditional update if possible, or standard python if not JIT-ed.
+    # Given requirements "If state.acc is None or state.step == 0", we implement:
+    # (Since we can't check 'is None' on JAX array easily in JIT, we rely on step check).
+    
+    # We use jax.lax.cond to be safe for JIT, or jnp.where.
+    # entity_acc update:
+    initial_acc = compute_forces(state, config)
+    
+    # If step_count == 0, use initial_acc, else keep existing entity_acc.
+    # As 'state.entity_acc' might not exist yet, this line assumes Step 3 fixes state.py.
+    # But for this step "Modify ONLY kernel.py", we write the logic.
+    
+    # To properly implement "If ... compute", we only want to compute it if needed?
+    # Actually, compute_forces is expensive. We should avoid it if step > 0.
+    # But inside JIT, we might have to compute it or use lax.cond.
+    # The prompt implies a Python-side check? "If state.acc is None".
+    # But 'state' is a JAX PyTree.
+    # Let's write it as a direct conditional assignment knowing it will be refined.
+    
+    def _init_forces(s):
+        return s.replace(entity_acc=compute_forces(s, config))
+        
+    def _no_op(s):
+        return s
+        
+    # We assume 'step_count' is available.
+    pred = (state.step_count == 0)
+    state = jax.lax.cond(pred, _init_forces, _no_op, state)
+
     # 2. Apply physics update (Integration + Wrapping)
-    state = dispatch_physics(state, config)
+    # Replaces legacy dispatch_physics/update_vector_physics
+    state = velocity_verlet(state, config, compute_forces)
+    
+    # Apply topology boundaries (wrapping)
+    new_pos = state.entity_pos
+    new_vel = state.entity_vel
+    final_pos, final_vel = apply_topology(new_pos, new_vel, config)
+    state = state.replace(entity_pos=final_pos, entity_vel=final_vel)
+
+    # Post-Integration Force Update
+    # Update acceleration based on final positions (for next step & diagnostics)
+    new_acc = compute_forces(state, config)
+    state = state.replace(entity_acc=new_acc)
 
     # 3. Compute Diagnostics (Post-step)
-    if config.enable_diagnostics:
-        state = compute_diagnostics(state, config)
+    # Always run diagnostics as required for Step 2 prompt
+    state = compute_diagnostics(state, config)
 
-    # 4. Return updated state
+    # 4. Increment Step Count
+    state = state.replace(step_count=state.step_count + 1)
+
+    # 5. Return updated state
     return state

@@ -79,6 +79,11 @@ class UniverseState:
     entity_mass: jnp.ndarray    # shape (max_entities,)
     entity_radius: jnp.ndarray  # shape (max_entities,)
     entity_type: jnp.ndarray    # shape (max_entities,)
+    
+    # New PS2.4 Fields
+    entity_acc: jnp.ndarray     # shape (max_entities, dim)
+    step_count: jnp.ndarray     # scalar int
+    initial_energy: jnp.ndarray # scalar float
 
     # Lattice arrays (always present, used in LATTICE mode)
     node_active: jnp.ndarray    # shape (max_nodes,)
@@ -122,6 +127,11 @@ def initialize_state(config: UniverseConfig) -> UniverseState:
         entity_mass=jnp.zeros(config.max_entities),
         entity_radius=jnp.full(config.max_entities, 0.1),  # Default radius
         entity_type=jnp.zeros(config.max_entities),
+        
+        # New PS2.4 Fields
+        entity_acc=jnp.zeros((config.max_entities, config.dim)),
+        step_count=jnp.array(0),
+        initial_energy=jnp.array(0.0),
 
         # Lattice arrays
         node_active=jnp.zeros(config.max_nodes, dtype=bool),
