@@ -27,21 +27,33 @@ def compute_diagnostics(state, config):
     N = pos.shape[0]
 
     # If fewer than 2 active bodies, PE = 0
+    # --- JAX-safe Potential Energy computation block ---
+
+    import jax
+
     # Unique unordered index pairs (i < j)
     idx_i, idx_j = jnp.triu_indices(N, k=1)
 
-    # If N < 2, these arrays are empty and reduce correctly.
-    if idx_i.size == 0:
-        PE = jnp.array(0.0)
-    else:
-        dist = compute_distance(pos[idx_i], pos[idx_j], config.topology_type, config)
+    # Define PE computation for the non-empty case
+    def _compute_pe(_):
+        dist = compute_distance(
+            pos[idx_i], pos[idx_j],
+            config.topology_type, config
+        )
         dist = jnp.maximum(dist, 1e-12)
 
         m_i = mass[idx_i]
         m_j = mass[idx_j]
-        G = config.G
+        G   = config.G
+        return -jnp.sum(G * m_i * m_j / dist)
 
-        PE = -jnp.sum(G * m_i * m_j / dist)
+    # Use JAX conditional to produce either 0.0 or computed PE
+    PE = jax.lax.cond(
+        idx_i.size == 0,
+        lambda _: jnp.array(0.0),
+        _compute_pe,
+        operand=None
+    )
 
     state = state.replace(potential_energy=PE)
 
