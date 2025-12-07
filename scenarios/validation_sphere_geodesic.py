@@ -35,7 +35,8 @@ def build_config(params: dict | None = None) -> UniverseConfig:
         c=1.0,
         G=G,
         dim=3,
-        enable_diagnostics=True
+        enable_diagnostics=True,
+        enforce_sphere_constraint=True,
     )
 
 def build_initial_state(config: UniverseConfig, params: dict | None = None) -> UniverseState:

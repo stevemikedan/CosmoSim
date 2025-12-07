@@ -61,6 +61,7 @@ class UniverseConfig:
     # Topology distance parameters
     torus_size: float | None = None  # Periodic box size (default: radius*2)
     bubble_curvature: float = 0.0  # Radial curvature k for bubble metric (0 = flat)
+    enforce_sphere_constraint: bool = False  # Project positions to sphere radius (PS2.4)
     # Substrate parameters
     substrate: str = "none"  # "none", "vector"
     substrate_params: dict | None = None  # Parameters for the substrate

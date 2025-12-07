@@ -115,13 +115,37 @@ def apply_topology(pos: jnp.ndarray, vel: jnp.ndarray, config) -> tuple[jnp.ndar
         new_pos = wrap(pos)
         return new_pos, vel
 
+    def sphere(pos, vel, bounds):
+        # If no constraint requested, behave as identity
+        if not getattr(config, "enforce_sphere_constraint", False):
+            return pos, vel
+        
+        R = getattr(config, "radius", None)
+        if R is None or R <= 0:
+            return pos, vel
+        
+        # Project positions back to radius R
+        norms = jnp.linalg.norm(pos, axis=1, keepdims=True)
+        # Avoid divide-by-zero
+        norms = jnp.where(norms == 0, 1e-12, norms)
+        new_pos = pos * (R / norms)
+        
+        # Project velocities onto tangent plane
+        # v_tangent = v - (v·n) n
+        n = new_pos / R
+        v_dot_n = jnp.sum(vel * n, axis=1, keepdims=True)
+        new_vel = vel - v_dot_n * n
+        
+        return new_pos, new_vel
+
     def reserved(pos, vel, bounds):
         return pos, vel
 
     branches = [
-        lambda args: flat(args[0], args[1], args[2]),
-        lambda args: torus(args[0], args[1], args[2]),
-        lambda args: reserved(args[0], args[1], args[2]),
+        lambda args: flat(args[0], args[1], args[2]),      # 0 = flat
+        lambda args: torus(args[0], args[1], args[2]),     # 1 = torus
+        lambda args: sphere(args[0], args[1], args[2]),    # 2 = sphere
+        lambda args: reserved(args[0], args[1], args[2]),  # 3+ = reserved
     ]
 
     # Unified torus bounds derivation
