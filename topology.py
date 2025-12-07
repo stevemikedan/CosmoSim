@@ -11,6 +11,12 @@ import jax.numpy as jnp
 from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
+# Topology Constants
+TOPOLOGY_FLAT = 0
+TOPOLOGY_TORUS = 1
+TOPOLOGY_SPHERE = 2
+TOPOLOGY_BUBBLE = 3
+
 
 def compute_distance(p1: jnp.ndarray, p2: jnp.ndarray, topology_type: int, radius: float) -> jnp.ndarray:
     """Compute distance between two points based on topology type.
@@ -118,7 +124,31 @@ def apply_topology(pos: jnp.ndarray, vel: jnp.ndarray, config) -> tuple[jnp.ndar
         lambda args: reserved(args[0], args[1], args[2]),
     ]
 
-    # Ensure bounds is a float; if None, set to 0.0 (flat behavior)
-    bounds = 0.0 if config.bounds is None else config.bounds
+    # Unified torus bounds derivation
+    if config.topology_type == TOPOLOGY_TORUS:
+        # Prefer torus_size if defined
+        if hasattr(config, "torus_size") and config.torus_size is not None:
+            effective_width = config.torus_size
+        elif config.radius is not None:
+            # fallback for legacy configs
+            effective_width = 2.0 * config.radius
+        else:
+            raise ValueError("Torus topology requires torus_size or radius > 0.")
+        
+        # Prevent zero or negative domain
+        if effective_width <= 0:
+            raise ValueError(f"Invalid torus width {effective_width}. Must be > 0.")
+        
+        bounds = effective_width / 2.0
+    else:
+        # Non-torus fallback (retain existing behavior)
+        bounds = config.radius if config.bounds is None else config.bounds
+        if bounds is None:
+            bounds = 0.0
+    
+    # Early validation guard for torus
+    if config.topology_type == TOPOLOGY_TORUS and bounds <= 0:
+        raise ValueError("Torus topology requires bounds > 0 (derived from torus_size or radius).")
+    
     safe_type = jnp.clip(config.topology_type, 0, 2)
     return jax.lax.switch(safe_type, branches, (pos, vel, bounds))

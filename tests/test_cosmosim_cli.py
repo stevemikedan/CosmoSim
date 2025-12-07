@@ -292,8 +292,20 @@ def test_run_scenario_export_json_default_dir(mock_datetime, mock_environ, mock_
     mock_datetime.now.return_value = mock_now
     
     # Setup mock scenario
-    fake_cfg = object()
-    fake_state = object()
+    fake_cfg = MagicMock()
+    fake_cfg.dt = 0.1
+    
+    # Create mock state with required attributes for export_simulation_single
+    fake_state = MagicMock()
+    fake_state.entity_pos = MagicMock()
+    fake_state.entity_vel = MagicMock()
+    fake_state.entity_mass = MagicMock()
+    fake_state.entity_type = MagicMock()
+    fake_state.entity_active = MagicMock()
+    fake_state.topology_type = 0
+    fake_state.time = MagicMock()
+    fake_state.step_count = MagicMock()
+    
     fake_module = SimpleNamespace(
         __name__="fake_scenario",
         build_config=MagicMock(return_value=fake_cfg),
@@ -342,8 +354,20 @@ def test_run_scenario_export_json_steps_default(mock_datetime, mock_export):
     mock_datetime.now.return_value = mock_now
     
     # Setup mock scenario
-    fake_cfg = object()
-    fake_state = object()
+    fake_cfg = MagicMock()
+    fake_cfg.dt = 0.1
+    
+    # Create mock state with required attributes for export_simulation_single
+    fake_state = MagicMock()
+    fake_state.entity_pos = MagicMock()
+    fake_state.entity_vel = MagicMock()
+    fake_state.entity_mass = MagicMock()
+    fake_state.entity_type = MagicMock()
+    fake_state.entity_active = MagicMock()
+    fake_state.topology_type = 0
+    fake_state.time = MagicMock()
+    fake_state.step_count = MagicMock()
+    
     fake_module = SimpleNamespace(
         __name__="fake_scenario",
         build_config=MagicMock(return_value=fake_cfg),

@@ -103,9 +103,11 @@ def velocity_verlet(
     # Per-particle validity (N,) boolean array
     is_particle_valid = is_valid_pos & is_valid_vel & is_within_bounds
     
-    # Apply per-particle: if particle invalid, keep old pos/vel
-    final_pos = jnp.where(is_particle_valid[:, None], pos_new, pos)
-    final_vel = jnp.where(is_particle_valid[:, None], vel_new, vel)
+    # Apply per-particle: if particle invalid OR inactive, keep old pos/vel
+    # CRITICAL: Inactive entities must NEVER move
+    should_update = is_particle_valid & active
+    final_pos = jnp.where(should_update[:, None], pos_new, pos)
+    final_vel = jnp.where(should_update[:, None], vel_new, vel)
     
     # Update state
     return state.replace(entity_pos=final_pos, entity_vel=final_vel)

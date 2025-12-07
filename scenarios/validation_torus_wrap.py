@@ -34,6 +34,7 @@ def build_config(params: dict | None = None) -> UniverseConfig:
         dim=2,
         enable_diagnostics=True,
         torus_size=domain,
+        bounds=domain / 2.0,  # NEW - enforces consistent torus domain
     )
 
 def build_initial_state(config: UniverseConfig, params: dict | None = None) -> UniverseState:
