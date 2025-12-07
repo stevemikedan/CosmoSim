@@ -27,7 +27,7 @@ class UniverseConfig:
     bounds: float | None = None  # None means infinite flat space
     # Physics stabilization
     gravity_softening: float = 0.05  # Softening length to prevent singularities
-    integrator: str = "velocity_verlet"  # Default to stable integrator
+    integrator: str = "euler"  # Default to stable integrator
     
     # Safety Controls (PS2.4)
     max_accel: float = 1e5

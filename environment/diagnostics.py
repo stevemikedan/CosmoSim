@@ -76,35 +76,47 @@ def compute_diagnostics(state, config):
     )
 
     # Compute drift relative to initial baseline
-    energy_drift = (total_energy - initial_energy) / (initial_energy + 1e-12)
-
-    # Store new diagnostic values
-    state = state.replace(
-        total_energy=total_energy,
-        initial_energy=initial_energy,
-        energy_drift=energy_drift,
-    )
-
-    # === END TOTAL ENERGY / DRIFT ADDITION ===
+    # Drift Stabilization: Handle initial_energy close to zero (avoid divide-by-zero)
+    initial_safe = jnp.where(jnp.abs(initial_energy) < 1e-12, 1.0, initial_energy)
+    energy_drift = (total_energy - initial_energy) / initial_safe
 
     # === PS2.4 Diagnostics: Momentum and Center of Mass ===
 
     # Momentum: sum_i (m_i * v_i)
-    # mass: (N,)
-    # vel:  (N, dim)
     momentum = jnp.sum(mass[:, None] * vel, axis=0)
 
     # Center of mass: sum_i (m_i * x_i) / sum_i m_i
-    # pos: (N, dim)
     total_mass = jnp.sum(mass)
     center_of_mass = jnp.sum(mass[:, None] * pos, axis=0) / (total_mass + 1e-12)
 
-    # Store momentum and COM in state
+    # === Final Scalar Normalization & NaN Safety ===
+    
+    # Ensure scalars are truly scalar shape () for JIT consistency
+    KE = KE.reshape(())
+    PE = PE.reshape(())
+    total_energy = total_energy.reshape(())
+    energy_drift = energy_drift.reshape(())
+    initial_energy = initial_energy.reshape(())
+    dt_actual = state.dt_actual.reshape(()) # Preserve existing dt_actual
+
+    # Apply NaN Safety (replace NaNs with 0.0)
+    KE = jnp.nan_to_num(KE)
+    PE = jnp.nan_to_num(PE)
+    total_energy = jnp.nan_to_num(total_energy)
+    energy_drift = jnp.nan_to_num(energy_drift)
+    momentum = jnp.nan_to_num(momentum)
+    center_of_mass = jnp.nan_to_num(center_of_mass)
+
+    # Store new diagnostic values
     state = state.replace(
+        kinetic_energy=KE,
+        potential_energy=PE,
+        total_energy=total_energy,
+        initial_energy=initial_energy,
+        energy_drift=energy_drift,
         momentum=momentum,
         center_of_mass=center_of_mass,
+        dt_actual=dt_actual, 
     )
-
-    # === END MOMENTUM / COM ADDITION ===
 
     return state

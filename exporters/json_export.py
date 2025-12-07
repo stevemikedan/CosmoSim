@@ -121,9 +121,28 @@ def get_frame_dict(state: Any) -> Dict[str, Any]:
         "params": {"bounds": _sanitize_number(state.bounds)},
     }
 
+    # Helper for safe scalar conversion
+    def _safe_float(val):
+        return _sanitize_number(float(val))
+
+    # Helper for safe vector conversion
+    def _safe_vector(val):
+        return _sanitize_nested(_to_python_list(val))
+
     return {
-        "time": _sanitize_number(float(state.time)),
-        "expansion_factor": _sanitize_number(float(state.expansion_factor)),
+        "time": _safe_float(state.time),
+        "step_count": int(state.step_count),
+        "expansion_factor": _safe_float(state.expansion_factor),
+        "dt_actual": _safe_float(state.dt_actual),
+        
+        # Diagnostics
+        "kinetic_energy": _safe_float(state.kinetic_energy),
+        "potential_energy": _safe_float(state.potential_energy),
+        "total_energy": _safe_float(state.total_energy),
+        "energy_drift": _safe_float(state.energy_drift),
+        "momentum": _safe_vector(state.momentum),
+        "center_of_mass": _safe_vector(state.center_of_mass),
+        
         "positions": positions,
         "velocities": velocities,
         "masses": masses,

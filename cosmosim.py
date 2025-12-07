@@ -131,58 +131,45 @@ CORE_PHYSICS_PARAMS = {
 
 
 
-def load_scenarios() -> dict[str, str]:
+def load_scenarios():
     """
-    Discover all available scenarios.
+    Auto-discover available scenario modules.
 
     Returns:
-        Dictionary mapping short scenario names to full module paths.
+        dict: mapping of short_name -> module_path
     """
-    # Manually seed short names for backward compatibility
-    scenarios = {
-        "visualize": "plotting.visualize",
-        "snapshot_plot": "plotting.snapshot_plot",
-        "trajectory_plot": "plotting.trajectory_plot",
-        "energy_plot": "plotting.energy_plot",
-    }
+    import pathlib
 
-    # Add other root-level modules
-    root_modules = [
-        "run_sim",
-        "jit_run_sim",
-    ]
+    scenarios = {}
 
-    for name in root_modules:
-        scenarios[name] = name
+    # --------------------------------------------------------
+    # 1. Add plotting modules with short names
+    # --------------------------------------------------------
+    # Added trajectory_plot to ensure all expected modules are present
+    plotting_modules = ["visualize", "snapshot_plot", "energy_plot", "trajectory_plot"]
+    for name in plotting_modules:
+        scenarios[name] = f"plotting.{name}"
 
-    # Also add full plotting.* paths for discovery
-    scenarios["plotting.visualize"] = "plotting.visualize"
-    scenarios["plotting.snapshot_plot"] = "plotting.snapshot_plot"
-    scenarios["plotting.trajectory_plot"] = "plotting.trajectory_plot"
-    scenarios["plotting.energy_plot"] = "plotting.energy_plot"
-
-    # Auto-discover scenarios in scenarios/ package
-    base_dir = pathlib.Path(os.getcwd())
+    # --------------------------------------------------------
+    # 2. Discover modules in the scenarios/ directory
+    # --------------------------------------------------------
+    base_dir = pathlib.Path(os.path.dirname(__file__))
     scenarios_dir = base_dir / "scenarios"
+
     if scenarios_dir.exists() and scenarios_dir.is_dir():
-        for py_file in scenarios_dir.glob("*.py"):
-            if py_file.name == "__init__.py":
+        # Use glob to ensure compatibility with existing tests that mock Path.glob
+        for item in scenarios_dir.glob("*.py"):
+            # Ignore __init__.py and private files
+            if item.name == "__init__.py" or item.name.startswith("_"):
                 continue
 
-            short_name = py_file.stem
+            # Short name = module filename without extension
+            short_name = item.stem
+
+            # Fully-qualified module path
             full_module = f"scenarios.{short_name}"
 
-            # Don't override manually-specified names
-            if short_name not in scenarios:
-                # Check for DEVELOPER_SCENARIO flag
-                try:
-                    mod = importlib.import_module(full_module)
-                    if getattr(mod, "DEVELOPER_SCENARIO", False):
-                        continue
-                except ImportError:
-                    continue
-                    
-                scenarios[short_name] = full_module
+            scenarios[short_name] = full_module
 
     return scenarios
 
