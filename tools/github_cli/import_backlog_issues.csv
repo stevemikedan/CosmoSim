@@ -1,0 +1,53 @@
+title,body,labels,assignees,milestone,state,state_reason
+[PS3.x] Introduce adaptive-force cutoff for far-field optimization,"Add adaptive cutoff radii for gravity calculations to reduce pairwise computation load.","PS3.x,PS,Backlog,milestone:PS3.x",,"","open",""
+[PS3.x] Multi-force engine architecture,"Design a unified engine where gravity, drag, EM forces, noise, and user-defined forces can register at runtime.","PS3.x,PS,Backlog,milestone:PS3.x",,"","open",""
+[PS3.x] Add continuous constraint projection for complex surfaces,"Extend constraint projection beyond sphere/torus to arbitrary surfaces and curved manifolds.","PS3.x,PS,Backlog,milestone:PS3.x",,"","open",""
+[PS3.x] Add symplectic integrator variants,"Implement third- and fourth-order symplectic integrators (Ruth, Yoshida) for long-term stability.","PS3.x,PS,Backlog,milestone:PS3.x",,"","open",""
+[PS3.x] Add rotating reference frame physics,"Simulate dynamics in rotating frames with Coriolis and centrifugal effects.","PS3.x,PS,Backlog,milestone:PS3.x",,"","open",""
+[PS3.x] Add relativistic toy-model corrections,"Introduce simplified special-relativistic corrections to force and velocity calculations.","PS3.x,PS,Backlog,milestone:PS3.x",,"","open",""
+[PS3.x] Unified force registry,"Create a registration system for custom force models and force composition.","PS3.x,PS,Backlog,milestone:PS3.x",,"","open",""
+[PS3.x] Simulation determinism pass,"Guarantee deterministic results under fixed seeds, ordering, and JAX semantics.","PS3.x,PS,Backlog,milestone:PS3.x",,"","open",""
+
+[PS4.x] Scalar field simulation engine,"Add scalar field substrate solver with tunable boundary conditions and coupling to particles.","PS4.x,PS,Backlog,milestone:PS4.x",,"","open",""
+[PS4.x] Fluid substrate solver,"Implement simplified Navier–Stokes-like dynamics (2D/3D) for substrate simulations.","PS4.x,PS,Backlog,milestone:PS4.x",,"","open",""
+[PS4.x] Particle–field coupling,"Allow particles to modify scalar fields and vice versa, simulating mediated dynamics.","PS4.x,PS,Backlog,milestone:PS4.x",,"","open",""
+[PS4.x] Substrate-driven curvature model,"Allow substrate density or field magnitude to modify effective topology curvature.","PS4.x,PS,Backlog,milestone:PS4.x",,"","open",""
+[PS4.x] Substrate energy exchange model,"Introduce energy transfer between particles and substrate field.","PS4.x,PS,Backlog,milestone:PS4.x",,"","open",""
+[PS4.x] GPU acceleration for scalar fields,"Accelerate field evolution using JAX-CUDA or custom GPU kernels.","PS4.x,PS,Backlog,milestone:PS4.x",,"","open",""
+
+[Engine3.x] GPU-accelerated solver pass,"Implement full GPU pipeline for force computation and integration using JAX/Numba/CUDA.","Engine3.x,Engine,Backlog,milestone:Engine3.x",,"","open",""
+[Engine3.x] KD-tree neighbor search,"Implement KD-tree data structures for high-dimensional neighbor queries.","Engine3.x,Engine,Backlog,milestone:Engine3.x",,"","open",""
+[Engine3.x] Barnes–Hut treecode,"Add O(N log N) approximation method for large-N gravitational simulations.","Engine3.x,Engine,Backlog,milestone:Engine3.x",,"","open",""
+[Engine3.x] Octree neighbor engine,"Introduce octree-based neighbor partitioning for 3D physics acceleration.","Engine3.x,Engine,Backlog,milestone:Engine3.x",,"","open",""
+[Engine3.x] Unified neighbor engine abstraction,"Create a single interface for hash-grid, KD-tree, octree, and BH modules.","Engine3.x,Engine,Backlog,milestone:Engine3.x",,"","open",""
+[Engine3.x] Integrator plugin system,"Support dynamic integrator selection and runtime loading.","Engine3.x,Engine,Backlog,milestone:Engine3.x",,"","open",""
+[Engine3.x] Multistep integrator family,"Add Gear predictor–corrector and Adams–Bashforth integrators.","Engine3.x,Engine,Backlog,milestone:Engine3.x",,"","open",""
+
+[Topology3.x] Higher-genus surface topology,"Add genus ≥2 surfaces with correct displacement paths and boundary rules.","Topology3.x,Topology,Backlog,milestone:Topology3.x",,"","open",""
+[Topology3.x] Projective plane topology,"Implement non-orientable projective plane topology and coordinate transformations.","Topology3.x,Topology,Backlog,milestone:Topology3.x",,"","open",""
+[Topology3.x] Time-varying topology transitions,"Allow topology to morph during simulation with smooth invariants.","Topology3.x,Topology,Backlog,milestone:Topology3.x",,"","open",""
+[Topology3.x] General geodesic solver,"Add numerical geodesic solver for arbitrary input surfaces.","Topology3.x,Topology,Backlog,milestone:Topology3.x",,"","open",""
+[Topology3.x] Topology-aware rendering pipeline,"Add rendering modes representing topology curvature and embedding in viewers.","Topology3.x,Topology,Backlog,milestone:Topology3.x",,"","open",""
+
+[Diagnostics2.x] Stability classification engine,"Classify simulation stability by analyzing drift, jitter, divergences, and periodicity.","Diagnostics2.x,Diagnostics,Backlog,milestone:Diagnostics2.x",,"","open",""
+[Diagnostics2.x] Drift heatmap visualization,"Visualize spatial distributions of stability drift.","Diagnostics2.x,Diagnostics,Backlog,milestone:Diagnostics2.x",,"","open",""
+[Diagnostics2.x] Real-time anomaly flagging,"Flag anomalies such as unbounded acceleration or sudden reversals.","Diagnostics2.x,Diagnostics,Backlog,milestone:Diagnostics2.x",,"","open",""
+
+[Diagnostics3.x] AI-assisted anomaly detection,"Integrate LLM reasoning to detect unphysical patterns and emergent anomalies.","Diagnostics3.x,Diagnostics,Backlog,milestone:Diagnostics3.x",,"","open",""
+[Diagnostics3.x] Simulation QA scoring system,"Score runs for physical correctness and numerical stability.","Diagnostics3.x,Diagnostics,Backlog,milestone:Diagnostics3.x",,"","open",""
+[Diagnostics3.x] Multi-run regression harness,"Automate comparisons across simulation versions for reproducibility.","Diagnostics3.x,Diagnostics,Backlog,milestone:Diagnostics3.x",,"","open",""
+
+[PSS3.x] Scenario template system,"Create reusable YAML-based scenario templates for consistent configuration.","PSS3.x,PSS,Backlog,milestone:PSS3.x",,"","open",""
+[PSS3.x] Parameter dependency graph solver,"Compute dependency constraints among parameters before simulation.","PSS3.x,PSS,Backlog,milestone:PSS3.x",,"","open",""
+[PSS3.x] Pre-run configuration constraint solver,"Detect invalid configurations before runtime based on dependencies.","PSS3.x,PSS,Backlog,milestone:PSS3.x",,"","open",""
+[PSS3.x] PSS plugin system,"Enable scenario modules to plug custom parameters and validation rules.","PSS3.x,PSS,Backlog,milestone:PSS3.x",,"","open",""
+
+[Viz3.x] Shader-based particle rendering,"Use WebGL shaders for high-performance point rendering and lighting.","Viz3.x,Visualization,Backlog,milestone:Viz3.x",,"","open",""
+[Viz3.x] 4D projection renderer,"Render 3D motion using time as a visualization dimension.","Viz3.x,Visualization,Backlog,milestone:Viz3.x",,"","open",""
+[Viz3.x] Multi-pane comparison dashboard,"Display synchronized views for topology, integrator, or parameter comparison.","Viz3.x,Visualization,Backlog,milestone:Viz3.x",,"","open",""
+[Viz3.x] Real-time raymarcher for topology rendering,"Use raymarching to visualize curved manifolds interactively.","Viz3.x,Visualization,Backlog,milestone:Viz3.x",,"","open",""
+
+[Edu2.x] Advanced topology curriculum,"Educational content demonstrating advanced topologies and transitions.","Edu2.x,Education,Backlog,milestone:Edu2.x",,"","open",""
+[Edu2.x] Chaos demonstration portal,"Interactive modules showing chaos, bifurcations, and sensitivity to initial conditions.","Edu2.x,Education,Backlog,milestone:Edu2.x",,"","open",""
+[Edu2.x] Physics stabilization teaching suite,"Educational walkthrough showing PS1.x → PS3.x improvements.","Edu2.x,Education,Backlog,milestone:Edu2.x",,"","open",""
+[Edu2.x] Intro to substrate physics module,"Teach scalar-field and fluid-substrate dynamics in an interactive way.","Edu2.x,Education,Backlog,milestone:Edu2.x",,"","open",""

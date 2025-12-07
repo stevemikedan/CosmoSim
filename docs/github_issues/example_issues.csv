@@ -1,0 +1,6 @@
+title,body,labels,assignees,milestone,state,state_reason
+Fix login button styling,"The login button needs to be centered and have proper hover effects",ui;bug,octocat;hubot,Website Polish,open,
+Add dark mode support,"Implement a dark mode theme for the application",enhancement,,v2 Milestone,open,
+Update documentation,"Update the README with new features and installation instructions",documentation,octocat,,closed,completed
+Fix API rate limiting,"Implement proper rate limiting for the API endpoints",backend;api,,,open,
+Improve error handling,"Add better error messages and logging for debugging",bug,hubot,Release 3,closed,not_planned

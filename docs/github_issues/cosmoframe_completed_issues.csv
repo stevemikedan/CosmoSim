@@ -1,0 +1,89 @@
+title,body,labels,assignees,state
+EPIC: Physics Stabilization PS1.x — Numerical & Engine Stabilization,"Epic tracking all PS1.x work: softened gravity, integrator abstraction, kernel and run_sim refactors, and viewer-side stability tooling (auto-camera) that prepared the engine for later topology-aware physics.","epic,PS,Done",,open
+EPIC: Physics Stabilization PS2.x — Topology-Aware Physics & Spatial Systems,"Epic covering PS2.1–PS2.4: topology-aware distance engine, neighbor engine, spatial partitioning, torus and sphere validation fixes, topology parameter preservation, and full cross-topology compatibility.","epic,PS,Done",,open
+Repo initialization and Git setup,"Initialize the CosmoFrame repository with Python layout, Git, .gitignore, and outputs directory.","Bootstrap,Architecture,Done",,open
+Initial package layout,"Create core engine modules (kernel, physics_utils, scenarios, exporters, viewer).","Bootstrap,Architecture,Engine,Done",,open
+Early entity and state models,"Define UniverseState and UniverseConfig with positions, velocities, masses, active flags.","Bootstrap,Engine,Done",,open
+Prototype simulation loop v0,"First raw loop computing forces & stepping positions; used for smoke tests.","Bootstrap,Engine,Done",,open
+Prototype force computation,"Add naive Newtonian gravity using Euclidean distances.","Engine,Legacy,Done",,open
+Prototype integrator pre-Verlet,"Implement simple Euler-style stepping before integrator abstraction.","Engine,Legacy,Done",,open
+Initial CLI parser,"Add run_sim.py argparse support for scenario, steps, and basic options.","Bootstrap,Architecture,Done",,open
+Scenario loader v0,"Create registry mapping scenario names to functions.","Bootstrap,Scenarios,Done",,open
+Matplotlib visualization v0,"Render scatterplots of positions for early debugging.","Visualization,Engine,Done",,open
+Image exporter v0,"Write PNG frames during runs.","Visualization,Engine,Done",,open
+Early JSON exporter v0,"Dump simple arrays to JSON for debugging.","Visualization,Legacy,Done",,open
+Transition to JAX backend,"Refactor numerical code to JAX arrays for future jit & vectorization.","Architecture,Engine,Done",,open
+JAX RNG & initialization utils,"Add random key handling and randomized initial state helpers.","Engine,Scenarios,Done",,open
+Early debug logs,"Add printouts of config values and step counts.","Bootstrap,Legacy,Done",,open
+Initial README roadmap,"Document early goals and development direction.","Bootstrap,Legacy,Done",,open
+Legacy run_sim scripts,"Initial standalone runner scripts before CLI consolidation.","Legacy,Done",,open
+Kernel step abstraction,"Create kernel.step() to unify integration and force computation.","Engine,Architecture,Done",,open
+Velocity Verlet v1,"Introduce Verlet integrator improving energy behavior.","Engine,Done",,open
+Force pipeline refactor,"Separate force computation from kernel to prep for topology support.","Engine,Done",,open
+Energy utilities,"Add KE/PE computations for diagnostics.","Engine,Diagnostics,Done",,open
+Stability investigations,"Run orbit tests to measure drift and inform stabilization roadmap.","Engine,Diagnostics,Done",,open
+Random N-body scenario,"Fully functional random initialization scenario.","Scenarios,Engine,Done",,open
+Two-body orbit scenario,"Analytic two-body system for validation.","Scenarios,Engine,Done",,open
+Three-body basic scenario,"Chaotic 3-body scenario for stress-testing integrator and physics.","Scenarios,Engine,Done",,open
+Scenario registry improvements,"Auto-discovery of scenarios and support for short names.","Scenarios,Architecture,Done",,open
+CLI consolidation to cosmosim.py,"Create unified CLI with scenario selection, viewer modes, export flags.","Architecture,E,Done",,open
+Viewer routing via --view,"Implement auto/debug/web/none routing modes.","Architecture,E,Visualization,Done",,open
+Scenario listing via CLI,"Add cosmosim.py --list to enumerate discovered scenarios.","Architecture,Scenarios,Done",,open
+Legacy scripts deprecated,"run_sim.py and jit_run_sim kept but marked deprecated.","Architecture,Legacy,Done",,open
+JSON exporter v1,"Export per-frame JSON in viewer-friendly format.","E,Visualization,Done",,open
+Single-file JSON exporter,"Add export_simulation_single for web viewer.","E,Visualization,Done",,open
+Frame dict utilities,"Convert JAX arrays to Python-native lists for JSON.","E,Visualization,Done",,open
+CLI test suite updates,"Consolidate tests around cosmosim.py rather than legacy runners.","E,Diagnostics,Done",,open
+PSS0.x: CLI param parsing,"Add parse_param_string supporting key=value parsing.","PSS,Done",,open
+PSS1.0: schema format,"Define SCENARIO_PARAMS with type, default, bounds, description.","PSS,Done",,open
+PSS1.1: loading & merging,"Load schema, merge CLI overrides, apply type conversion and bounds.","PSS,Done",,open
+PSS integration with cosmosim,"Pass merged_params into scenario builders.","PSS,Architecture,Done",,open
+PSS validation layer (1.2),"Add warnings for invalid types, unknown params, missing required.","PSS,Diagnostics,Done",,open
+Schema validation utilities,"Ensure scenario schemas are well-formed.","PSS,Diagnostics,Done",,open
+PSS test suite expansion,"Add tests for parsing, merging, validation, integration.","PSS,Diagnostics,Done",,open
+JAX mocking fixes,"Patch step_simulation in-module to avoid tracer issues.","Diagnostics,Engine,Done",,open
+Interactive Python viewer (E1.1/E1.2),"Implement real-time viewer with pause/step/reset, overlays, color modes, radius modes.","E,Visualization,Done",,open
+Viewer overlay system,"Add HUD, inspector, velocity vectors, and trajectory overlays.","E,Visualization,Done",,open
+UniverseState entity_radius field,"Add support for scaled rendering based on radius.","Engine,E,Done",,open
+Viewer interaction tests,"Test pause, resume, step, selection, HUD, overlays.","E,Diagnostics,Done",,open
+Diagnostics panel (E1.3),"Implement metrics engine: energy, momentum, COM, velocity histogram.","E,Diagnostics,Done",,open
+Metrics throttling & history,"Non-blocking background metrics figure with capped history.","E,Diagnostics,Done",,open
+Metrics test suite,"Tests for metric correctness, pruning, toggling.","E,Diagnostics,Done",,open
+Web scenario config panel (E1.4),"UI panel generating cosmosim commands based on scenario schemas.","E,Visualization,Done",,open
+Scenario schema registry JS,"Mirror of Python SCENARIO_PARAMS for web viewer.","E,Visualization,Done",,open
+Parameter panel in Python viewer (E1.5),"Display scenario metadata, config values, engine flags, merged params.","E,Visualization,Done",,open
+Parameter panel throttling & tests,"Add update throttling and full integration tests.","E,Diagnostics,Done",,open
+Topology overlay base system,"Add GridOverlay, BoundsOverlay, and overlay factory for JSON export.","Visualization,E,Done",,open
+Grid overlay implementation,"Generate 2D/3D gridlines scaled to simulation bounds.","Visualization,E,Done",,open
+Bounds overlay implementation,"Generate bounding cube/square overlays for web viewer.","Visualization,E,Done",,open
+Overlay integration hooks,"Allow export_simulation to attach overlays to frame 0.","Visualization,E,Done",,open
+Overlay tests,"Validate overlay JSON structure and generation logic.","Visualization,E,Diagnostics,Done",,open
+PS1.1 softened gravity,"Implement softened gravity formula and new physics_utils module.","PS,Engine,Done",,open
+gravity_softening config option,"Add softening-length parameter to UniverseConfig.","PS,Engine,Done",,open
+Kernel refactor for gravity utils,"Remove duplicate inline gravity code and centralize into physics_utils.","PS,Engine,Done",,open
+Softened gravity test suite,"Add comprehensive tests for softening behavior and symmetry.","PS,Diagnostics,Done",,open
+PS1.2 integrator abstraction,"Add integrate_euler and integrate_leapfrog with config-based selection.","PS,Engine,Done",,open
+Integrator tests,"Confirm both integrators behave correctly and match prior results.","PS,Diagnostics,Done",,open
+Auto-camera system (PS1.5),"Auto-scale camera to bounding sphere with smoothing; UI toggle & reset.","PS,E,Done",,open
+Auto-camera integration tests,"Verify smooth camera updates, edge case handling, reset logic.","PS,E,Diagnostics,Done",,open
+PS2.1 distance engine,"compute_offset + compute_distance for FLAT, TORUS, SPHERE, BUBBLE.","PS,Engine,Done",,open
+Topology config fields,"Add torus_size and bubble_curvature to UniverseConfig.","PS,Engine,Done",,open
+Hybrid flat/topology gravity path,"Fast Euclidean path for FLAT, topology-aware vmap path otherwise.","PS,Engine,Done",,open
+Distance engine tests,"Verify offsets/distances across all topologies; antipodal sphere tests.","PS,Diagnostics,Done",,open
+PS2.2 neighbor engine,"Add topology_neighbors with compute_topology_offset + pair iterator.","PS,Engine,Done",,open
+Neighbor engine config flag,"Add enable_neighbor_engine to UniverseConfig.","PS,Engine,Done",,open
+Neighbor engine tests,"Validate neighbor pair correctness across all topologies.","PS,Diagnostics,Done",,open
+PS2.3 spatial partition engine,"Implement spatial_hash grid with compute_cell_index, partitions, neighbor cells.","PS,Engine,Done",,open
+Partition-based neighbor iterator,"Use spatial partition to restrict neighbor search area.","PS,Engine,Done",,open
+Spatial partition flags,"Add enable_spatial_partition + spatial_cell_size.","PS,Engine,Done",,open
+Spatial partition tests,"Validate partition-based neighbor equivalence and determinism.","PS,Diagnostics,Done",,open
+PS2.4 torus NaN fix,"Fix torus wrapping & bounds leading to NaNs; validate with torus wrap scenario.","PS,Diagnostics,Done",,open
+PS2.4 sphere constraint projection,"Project positions to sphere radius and velocities to tangent plane.","PS,Engine,Done",,open
+Sphere constraint tests,"Stability tests for geodesic motion under constraint.","PS,Diagnostics,Done",,open
+Topology parameter merging fix,"Ensure topology_type survives PSS merging and schema overrides.","PSS,PS,Done",,open
+Topology constants alignment,"Add explicit enum constants and align handler switch logic.","PS,Engine,Done",,open
+export_simulation_single test compatibility,"Mock kernel+I/O to test JSON export without tracing errors.","PS,E,Diagnostics,Done",,open
+MagicMock type coercion fix,"Coerce topology_type to int to avoid recursion errors during tests.","PS,Diagnostics,Done",,open
+PS2.4 full validation suite,"Run cross-topology validations to confirm stability & correctness.","PS,Diagnostics,Done",,open
+README refinement,"Update README to reference walkthroughs, PS phases, overlays.","Bootstrap,Legacy,Done",,open
+Walkthrough index creation,"Create consolidated index of major walkthrough docs.","Bootstrap,Legacy,Done",,open

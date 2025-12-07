@@ -1,0 +1,31 @@
+title,body,labels,assignees,milestone,state,state_reason
+Initialize repository and create base project layout,"Created the first CosmoSim repository with minimal folders and cosmosim.py stub.",Bootstrap;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Add .gitignore and outputs directory,"Added Python-focused .gitignore, created outputs/ and added .gitkeep for artifact tracking.",Bootstrap;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Set up Python environment and dependencies,"Created virtual environment and installed JAX, matplotlib, and required dependencies.",Bootstrap;Architecture;Done,,Pre-PS1.1 Development,closed,completed
+Implement first simulation loop skeleton,"Added basic simulation loop with fixed timestep and minimal configuration in cosmosim.py.",Engine;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Define minimal body and simulation state representation,"Implemented early position, velocity, and mass containers for a few bodies.",Architecture;Engine;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Add naive Euler integrator v0,"Implemented Euler-based update for positions and velocities, wired into the main loop.",Engine;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Implement first gravitational force calculation,"Added direct pairwise Newtonian gravity force computation using nested loops.",Engine;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Hard-code initial inline scenario,"Embedded early random or simple multi-body setup directly into cosmosim.py before scenario modularization.",Scenarios;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Introduce CLI argument parsing (argparse),"Added --scenario, --steps, and output options enabling command-line simulation control.",Bootstrap;Architecture;Done,,Pre-PS1.1 Development,closed,completed
+Implement scenario registry and extraction,"Created standalone scenario builder functions and registered them under scenario names.",Architecture;Scenarios;Done,,Pre-PS1.1 Development,closed,completed
+Implement Random N-Body scenario v1,"Added random position/velocity initialization and parameterized cluster radius.",Scenarios;Engine;Done,,Pre-PS1.1 Development,closed,completed
+Implement Two-Body orbital scenario,"Created a scenario with a central mass and orbiting body with approximate circular velocity.",Scenarios;Engine;Done,,Pre-PS1.1 Development,closed,completed
+Implement Three-Body chaotic scenario,"Added scenario for chaotic gravitational dynamics to test integrator stability.",Scenarios;Engine;Done,,Pre-PS1.1 Development,closed,completed
+Implement first JSON exporter,"Added JSON export for positions/velocities enabling offline inspection.",Visualization;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Implement first PNG snapshot renderer (matplotlib),"Added 2D scatter plot renderer for saving PNG frames of simulation output.",Visualization;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Implement JSON multi-frame exporter (v0),"Extended exporter to write full frame sequences for replay or web viewer use.",Visualization;Architecture;Done,,Pre-PS1.1 Development,closed,completed
+Add trajectory plotting capability,"Added matplotlib trajectory plots to visualize body paths over time.",Visualization;Done,,Pre-PS1.1 Development,closed,completed
+Refactor stepping logic into kernel abstraction,"Extracted physics stepping into kernel_step() for cleaner architecture.",Engine;Architecture;Done,,Pre-PS1.1 Development,closed,completed
+Move physics functions into engine module,"Separated force calculations, integrator, and energy functions into engine/.",Engine;Architecture;Done,,Pre-PS1.1 Development,closed,completed
+Implement energy calculation helpers,"Added functions for kinetic and potential energy to track simulation drift.",Engine;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Add stability checks using energy drift,"Introduced warnings for sudden divergence or excessive energy error.",Engine;Done,,Pre-PS1.1 Development,closed,completed
+Introduce base configuration object/dict,"Created a central configuration structure for dt, steps, N, radius, and topology.",Architecture;Done,,Pre-PS1.1 Development,closed,completed
+Implement CLI parameter override system,"Added custom parameter parsing (--params N=50,radius=10) and merging logic.",Architecture;Done,,Pre-PS1.1 Development,closed,completed
+Implement default + scenario parameter merging,"Scenario defaults now merge with global defaults then apply CLI overrides.",Architecture;Done,,Pre-PS1.1 Development,closed,completed
+Convert state arrays to JAX arrays (experiment),"Migrated the state container to jax.numpy to test performance and consistency.",Engine;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Implement JAX-based force computation experiment,"Rebuilt gravitational force calculation using jax.numpy and tested accuracy.",Engine;Legacy;Done,,Pre-PS1.1 Development,closed,completed
+Implement flat topology displacement helper v0,"Created a simple displacement function for flat Euclidean space.",Architecture;Engine;Done,,Pre-PS1.1 Development,closed,completed
+Implement torus wrapping experiment v0,"Added periodic boundary wrapping as a precursor to full torus topology support.",Architecture;Engine;Done,,Pre-PS1.1 Development,closed,completed
+Prototype sphere displacement calculation,"Implemented an early approximation of sphere-surface displacement for experimentation.",Architecture;Engine;Done,,Pre-PS1.1 Development,closed,completed
+Create initial web viewer stub,"Added empty viewer module verifying JSON fields align with future needs.",Visualization;Architecture;Legacy;Done,,Pre-PS1.1 Development,closed,completed

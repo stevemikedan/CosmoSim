@@ -1,0 +1,3 @@
+title,body,labels,assignees,milestone,state,state_reason
+Initialize repository and create base project layout,"Created the first CosmoSim repository with minimal folders and cosmosim.py stub.","Bootstrap,Legacy,Done",,Pre-PS1.1 Development,closed,completed
+Add .gitignore and outputs directory,"Added Python-focused .gitignore, created outputs/ and added .gitkeep for artifact tracking.","Bootstrap,Legacy,Done",,Pre-PS1.1 Development,closed,completed
