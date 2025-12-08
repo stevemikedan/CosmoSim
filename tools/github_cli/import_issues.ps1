@@ -1,5 +1,7 @@
 # $csv = Import-Csv "cosmosim_completed_issues.csv"
-$csv = Import-Csv "import_backlog_issues.csv"
+# $csv = Import-Csv "import_backlog_issues.csv"
+$csv = Import-Csv "cosmoframe_remaining-mvp_issues.csv"
+
 $repo = "stevemikedan/CosmoFrame"
 
 foreach ($row in $csv) {
@@ -31,7 +33,8 @@ foreach ($row in $csv) {
     if ($url -match "/issues/(\d+)$") {
         $issueNumber = $matches[1]
         Write-Host " -> Created issue #$issueNumber"
-    } else {
+    }
+    else {
         Write-Host " -> ERROR: Could not extract issue number"
         continue
     }

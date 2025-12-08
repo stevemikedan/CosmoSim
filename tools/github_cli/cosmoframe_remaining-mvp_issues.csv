@@ -1,0 +1,4 @@
+title,body,labels,assignees,milestone,state,state_reason
+[MVP] Scenario Showcase: Two-Body Orbit,"Create a polished, demo-ready two-body orbit scenario preset including stable parameters, clean trails, and viewer defaults.","MVP,Scenarios,E1.x,Backlog,milestone:MVP",,, "open",""
+[MVP] Scenario Showcase: Topology Switching Demo,"Implement a scenario configuration and demo sequence that switches between FLAT → TORUS → SPHERE topologies while keeping bodies stable and viewer synchronized.","MVP,Scenarios,Topology,E2.x,Backlog,milestone:MVP",,, "open",""
+[MVP] Demo Bundle Script,"Create a single script that runs all MVP scenarios (two-body, three-body, N-body, torus-wrap, sphere-geodesic), exports JSON files, and prepares assets for the fellowship demo.","MVP,Tooling,E2.x,E1.x,Backlog,milestone:MVP",,, "open",""
