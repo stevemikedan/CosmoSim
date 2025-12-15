@@ -191,32 +191,7 @@ export class UIManager {
 
     handleReset() {
         console.log('[Viewer] Resetting simulation...');
-
-        // Stop playback if running
-        if (this.viewer.player) {
-            this.viewer.player.stop();
-        }
-
-        // Remove rendered particle system
-        if (this.viewer.player && this.viewer.player.particleSystem) {
-            this.viewer.scene.remove(this.viewer.player.particleSystem);
-            this.viewer.player.particleSystem.geometry.dispose();
-            this.viewer.player.particleSystem.material.dispose();
-        }
-
-        // Remove topology overlay
-        if (this.viewer.player && this.viewer.player.topologyOverlay && this.viewer.player.topologyOverlay.group) {
-            this.viewer.scene.remove(this.viewer.player.topologyOverlay.group);
-        }
-
-        // Clear player
-        this.viewer.player = null;
-
-        // Reset HUD
-        this.hudFrame.textContent = '0';
-        this.hudTotal.textContent = '0';
-        this.hudTime.textContent = '0.000';
-        this.hudEntities.textContent = '0';
+        this.cleanupCurrentSimulation();
 
         // Reset loading overlay
         this.errorMessage.textContent = '';
@@ -226,7 +201,44 @@ export class UIManager {
         console.log('[Viewer] Simulation state cleared.');
     }
 
+    cleanupCurrentSimulation() {
+        console.log('[UI] Cleaning up current simulation...');
+
+        // Stop playback if running
+        if (this.viewer.player) {
+            this.viewer.player.pause();
+            console.log('[UI] Paused player');
+        }
+
+        // Remove rendered particle system (instancedMesh)
+        if (this.viewer.player && this.viewer.player.instancedMesh) {
+            this.viewer.scene.remove(this.viewer.player.instancedMesh);
+            this.viewer.player.instancedMesh.geometry.dispose();
+            this.viewer.player.instancedMesh.material.dispose();
+            console.log('[UI] Removed instancedMesh');
+        }
+
+        // Remove topology overlay
+        if (this.viewer.player && this.viewer.player.topologyOverlay && this.viewer.player.topologyOverlay.group) {
+            this.viewer.scene.remove(this.viewer.player.topologyOverlay.group);
+            console.log('[UI] Removed topology overlay');
+        }
+
+        // Clear player
+        this.viewer.player = null;
+        console.log('[UI] Cleared player reference');
+
+        // Reset HUD
+        this.hudFrame.textContent = '0';
+        this.hudTotal.textContent = '0';
+        this.hudTime.textContent = '0.000';
+        this.hudEntities.textContent = '0';
+    }
+
     initializePlayer(frames) {
+        // Clean up any existing simulation first
+        this.cleanupCurrentSimulation();
+
         const player = new FramePlayer(frames, this.viewer.scene);
         player.initializeEntities();
 
