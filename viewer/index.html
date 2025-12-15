@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CosmoSim Frame Player</title>
+
+    <!-- External Stylesheets -->
+    <link rel="stylesheet" href="./css/viewer.css">
+    <link rel="stylesheet" href="./css/panels.css">
+</head>
+
+<body>
+    <canvas id="cosmosim-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div>Frame: <span id="hud-frame">0</span> / <span id="hud-total">0</span></div>
+        <div>Time: <span id="hud-time">0.000</span>s</div>
+        <div>Entities: <span id="hud-entities">0</span> active</div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+        <button id="btn-restart" title="Restart (R)">⏮ Restart</button>
+        <button id="btn-prev" title="Previous Frame (←)">⏪ Prev</button>
+        <button id="btn-play" title="Play/Pause (Space)">▶ Play</button>
+        <button id="btn-next" title="Next Frame (→)">⏩ Next</button>
+        <span class="separator">|</span>
+        <label>FPS:</label>
+        <input type="number" id="fps-input" min="1" max="60" value="30">
+        <span class="separator">|</span>
+        <label>Mode:</label>
+        <select id="visual-mode">
+            <option value="mass-color">Mass Color</option>
+            <option value="type-color">Type Color</option>
+            <option value="velocity-color">Velocity Color</option>
+            <option value="active-mask">Active Mask</option>
+            <option value="uniform">Uniform</option>
+        </select>
+        <span class="separator">|</span>
+        <div id="topologyControls">
+            <label>
+                <input type="checkbox" id="toggleTopology" checked>
+                Overlay
+            </label>
+            <span id="topologyLabel">(none)</span>
+        </div>
+        <span class="separator">|</span>
+        <label for="toggleAutoCamera">
+            <input type="checkbox" id="toggleAutoCamera" checked>
+            Auto Camera
+        </label>
+        <button id="btn-reset-camera" title="Reset Camera (C)">📷 Reset</button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading">
+        <div class="loading-text">CosmoSim Frame Player</div>
+        <div class="loading-progress" id="loading-progress">Ready to load frames</div>
+        <div class="load-buttons">
+            <button id="btn-load-simfile">Load .json Simulation</button>
+            <button id="btn-load-fetch">Load from ../frames/</button>
+            <button id="btn-load-directory">Choose Directory</button>
+        </div>
+        <div class="error-message" id="error-message"></div>
+    </div>
+
+    <!-- Persistent Control Panel -->
+    <div id="control-panel">
+        <button id="btn-load-json">Load JSON Simulation</button>
+        <button id="btn-load-dir">Load Frame Directory</button>
+        <button id="btn-reset">Reset / Clear Simulation</button>
+    </div>
+
+    <!-- Scenario Config Open Button -->
+    <button id="btn-open-scenario">Open Scenario Config</button>
+
+    <!-- Scenario Configuration Panel (Modal) -->
+    <section id="scenarioPanel" class="modal">
+        <button class="modal-close" id="btn-close-scenario">✕</button>
+        <h3>Scenario Setup</h3>
+
+        <label>Scenario:</label>
+        <select id="scenarioSelector"></select>
+
+        <label>Preset:</label>
+        <select id="presetSelector"></select>
+
+        <div id="paramsContainer"></div>
+
+        <label>Steps:</label>
+        <input type="number" id="stepsInput" value="300" min="1">
+
+        <label>Output Directory:</label>
+        <input type="text" id="outputDirInput" value="outputs/demo">
+
+        <button id="runScenarioBtn">
+            Generate Simulation Command
+        </button>
+
+        <div id="scenarioCommandContainer" class="hidden">
+            <h4>Command:</h4>
+            <textarea id="scenarioCommandOutput" rows="4"></textarea>
+            <button id="copyScenarioCommandBtn">
+                Copy to Clipboard
+            </button>
+        </div>
+    </section>
+
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.152.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.152.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <!-- Main Application Bootstrap -->
+    <script type="module">
+        import { ViewerManager } from './js/viewer.js';
+        import { UIManager } from './js/ui.js';
+
+        // Initialize viewer
+        const canvas = document.getElementById('cosmosim-canvas');
+        const viewer = new ViewerManager(canvas);
+
+        // Initialize UI
+        const ui = new UIManager(viewer);
+
+        // Start animation loop
+        viewer.animate();
+    </script>
+</body>
+
+</html>
